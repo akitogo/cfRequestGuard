@@ -92,6 +92,77 @@ Recommended rollout: install in shadow, run it beside whatever you have for a
 week, compare the `SHADOW` lines with your own logs, then set `"mode": "enforce"`.
 From then on, new rules go in with per-rule shadow.
 
+## Reading the log
+
+Every decision other than a plain allow is one line in the engine log named by
+the `log` sink (`"sinks": [ { "type": "log", "file": "requestguard" } ]`),
+written with `writeLog`. Where that file lives is up to the engine:
+
+- Lucee: `<lucee-server>/context/logs/requestguard.log` for the server context,
+  or `WEB-INF/lucee/logs/` for a web context; listed in the Lucee admin under Logging.
+- BoxLang: the `logs/` directory of the runtime home (see `logging` in `boxlang.json`).
+- Adobe ColdFusion: `cfusion/logs/requestguard.log`.
+
+Startup and list maintenance write to the same file under the name in
+`logFile`, which is why both default to `requestguard`. A healthy start looks like:
+
+```
+"INFO","http-nio-8888-exec-1","10/14/2026","23:15:21","myapp","cfRequestGuard list 'googleCrawler' loaded from store: 48 ranges from 557 entries (0 skipped)"
+"INFO","http-nio-8888-exec-1","10/14/2026","23:15:21","myapp","cfRequestGuard loaded (mode: enforce) in 181 ms"
+"INFO","cfthread-91193","10/15/2026","03:49:16","myapp","cfRequestGuard list 'googleCrawler' loaded from remote: 48 ranges from 558 entries (0 skipped)"
+```
+
+Decision lines, taken from a production log with the addresses replaced by
+documentation ranges (Lucee's CSV log format; the columns before the message
+are the engine's):
+
+```
+"WARN","http-nio-8888-exec-41","10/15/2026","16:29:51","myapp","BLOCK-403-cloud-no-cookies | rule=cloud-no-cookies | ip=203.0.113.17 | GET /products/5117765.html | ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+"WARN","http-nio-8888-exec-11","10/15/2026","19:34:54","myapp","BLOCK-403-fake-googlebot | rule=fake-googlebot | ip=203.0.113.44 | GET /userfiles?path=../../../.env | ua=Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+"WARN","http-nio-8888-exec-14","10/15/2026","14:05:30","myapp","CHALLENGE-safari-no-secfetch | rule=safari-no-secfetch | ip=198.51.100.30 | GET /products/8461063.html | ua=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15"
+"WARN","http-nio-8888-exec-5","10/15/2026","17:58:23","myapp","CHALLENGE-chrome-no-secfetch | rule=chrome-no-secfetch | ip=203.0.113.91 | GET /blog/rss | ua=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+"WARN","http-nio-8888-exec-27","10/15/2026","19:30:38","myapp","BLOCK-503-global-ratelimit-tripped | rule=global-ratelimit | ip=198.51.100.31 | GET /catalog/people.html | ua=Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:143.0) Gecko/20100101 Firefox/143.0 | attempts=21 blockCount=1 retryAfter=6s"
+"WARN","http-nio-8888-exec-23","10/15/2026","19:30:39","myapp","BLOCK-503-global-ratelimit-extended | rule=global-ratelimit | ip=198.51.100.31 | GET /catalog/travel.html | ua=Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:143.0) Gecko/20100101 Firefox/143.0 | attempts=22 blockCount=1 retryAfter=6s"
+"WARN","http-nio-8888-exec-9","10/15/2026","19:31:02","myapp","BLOCK-403-banned | rule=strike-ban | ip=203.0.113.44 | GET /wp-content/plugins/hellopress/wp_filemanager.php | ua="
+"INFO","http-nio-8888-exec-14","10/15/2026","19:34:53","myapp","SHADOW BLOCK-403-unwanted-bots | rule=unwanted-bots | ip=203.0.113.44 | GET /document.php?modulepart=systemtools&file=../conf/conf.php | ua=Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)"
+"INFO","http-nio-8888-exec-5","10/15/2026","00:15:57","myapp","LOG-client-forwarding-header | rule=client-forwarding-header | ip=203.0.113.238 | GET /.svn/entries | ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0"
+```
+
+What those lines say: a cloud address without cookies was denied; a Googlebot
+claim from outside Google's ranges was denied; two browsers without Sec-Fetch
+headers got the challenge page; one address tripped the rate limit at its 21st
+request and was still inside the block a second later; a probing client reached
+the strike threshold and is banned for the configured period; a rule in shadow
+mode reported what it would have done; a `log` rule recorded a client-supplied
+forwarding header without acting.
+
+Read a line left to right:
+
+| field | meaning |
+|---|---|
+| label | what was done, as `ACTION-STATUS-rule`: `BLOCK-403-<rule>` denied, `CHALLENGE-<rule>` served the challenge page, `BLOCK-503-<rule>-tripped` rate limit just hit, `BLOCK-503-<rule>-extended` still inside the block, `IGNORE-<rule>` quiet 200, `LOG-<rule>` observed only, `BLOCK-403-banned` the strike ladder. A rule may set its own `label`. |
+| `SHADOW ` prefix | reported but not enforced: global shadow mode, a per-rule `mode: shadow`, or a challenge rule without a secret. Shadow and `LOG-` lines are `INFO`, enforced decisions `WARN`. |
+| `rule=` | the rule name from the config. |
+| `ip=` | the client address after trusted-proxy resolution, the one counters and bans are keyed on. |
+| method and path | the request line, query string truncated to 200 characters. |
+| `ua=` | the user agent, truncated to 160 characters. |
+| trailing detail | present for rate limits (`attempts=21 blockCount=1 retryAfter=6s`) and bot verification. |
+
+Things worth grepping for:
+
+```
+grep -c "SHADOW"                       # still in shadow? drops to zero after the flip
+grep "BLOCK-503"                       # who hits the rate limit, with how many attempts
+grep "BLOCK-403-banned"                # strike ladder bans; trusted bots never appear here
+grep "cfRequestGuard list"             # refresh results and floor rejections
+grep -v "SHADOW" | grep "CHALLENGE"    # challenged clients; a real browser appears once per day per IP
+```
+
+A client that shows up with the same `CHALLENGE-` line hundreds of times never
+ran the page's JavaScript; the rate limit above the challenge tiers is what stops
+it. Errors raised inside `inspect()` are the host's to log; the wiring example
+above catches and logs them, and the request then proceeds as allowed.
+
 ## Config
 
 The config is JSON inside a `.json.cfm` wrapper: first line `<cfabort>`, the JSON
