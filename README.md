@@ -29,8 +29,13 @@ boolean function onApplicationStart(){
 }
 
 boolean function onRequestStart( string targetPage ){
-    var guard    = application.requestGuard;
-    var decision = guard.inspect( guard.snapshot() );
+    var guard = application.requestGuard;
+    try {
+        var decision = guard.inspect( guard.snapshot() );
+    } catch ( any e ) {
+        writeLog( file = "requestguard", type = "error", text = "cfRequestGuard inspect failed: #e.message# | #cgi.PATH_INFO#" );
+        return true;             // a broken guard must never take the site down
+    }
     // session timeout is an engine setting, so the host applies it before enforce() aborts
     if ( decision.sessionTimeoutSeconds > 0 ) {
         this.sessionTimeout = createTimeSpan( 0, 0, 0, decision.sessionTimeoutSeconds );
@@ -39,6 +44,53 @@ boolean function onRequestStart( string targetPage ){
     ...
 }
 ```
+
+## Shadow and enforce
+
+There are three switches, from coarse to fine:
+
+1. **Global `mode`** at the top of the config: `"mode": "shadow"` or `"mode": "enforce"`.
+   The example ships in shadow. In shadow the whole rule set runs, every decision
+   is written to the sinks with a `SHADOW` prefix (`SHADOW BLOCK-403-fake-googlebot ...`)
+   and `inspect()` returns allow with the would-be decision attached as
+   `decision.shadow`. Nothing is blocked, challenged or rate-limited. Strikes are
+   not counted either, so nobody gets banned by a rule you are only watching.
+2. **Per-rule `mode`**: `{ "name": "new-signature", "action": "deny", "mode": "shadow", ... }`.
+   Only that rule is reported instead of enforced; the rest of the config stays
+   in enforce. This is how a new rule earns its place: shadow it for a week, read
+   the log, then delete the `mode` key.
+3. **Challenge rules without a secret** are shadowed automatically. Until
+   `secret` resolves to a value, every `challenge` decision is logged as
+   `SHADOW CHALLENGE-...` with "no secret configured", because a random per-start
+   secret would bounce visitors between nodes.
+
+To change the mode, edit the config file and let the host reload the guard. The
+guard reads its config once, at `init()`; whether an edit is picked up without a
+restart is the host's job. The wiring above only loads it at application start,
+so either reinit the application or add a cheap mtime check:
+
+```cfml
+// in onRequestStart, before inspect(); checks the file date once a minute
+if ( !structKeyExists( application, "requestGuardStamp" )
+     || dateDiff( "s", application.requestGuardChecked ?: createDate( 2000, 1, 1 ), now() ) > 60 ) {
+    var stamp = getFileInfo( expandPath( "/config/requestguard.json.cfm" ) ).lastModified;
+    if ( !structKeyExists( application, "requestGuardStamp" ) || dateCompare( stamp, application.requestGuardStamp ) == 1 ) {
+        lock name="loadRequestGuard" type="exclusive" timeout="30" {
+            application.requestGuard      = new cfRequestGuard.RequestGuard( expandPath( "/config/requestguard.json.cfm" ) );
+            application.requestGuardStamp = stamp;
+        }
+    }
+    application.requestGuardChecked = now();
+}
+```
+
+For a quick flip without touching the file, `application.requestGuard.setMode( "shadow" )`
+or `setMode( "enforce" )` switches the running instance; the next reload reads the
+file again. `isShadow()` tells you which mode is active.
+
+Recommended rollout: install in shadow, run it beside whatever you have for a
+week, compare the `SHADOW` lines with your own logs, then set `"mode": "enforce"`.
+From then on, new rules go in with per-rule shadow.
 
 ## Config
 
@@ -55,7 +107,7 @@ See `config/requestguard.example.json.cfm`. Top-level keys:
 
 | key | purpose |
 |---|---|
-| `mode` | `enforce` (default) or `shadow`. Shadow runs the whole rule set, reports every decision to the sinks with a `SHADOW` prefix, and returns allow with the shadowed decision attached as `decision.shadow`. One switch to run beside existing code. |
+| `mode` | `shadow` or `enforce` (the default when the key is missing). See "Shadow and enforce" above. |
 | `secret` | HMAC secret for challenge cookies. `env:NAME` reads an environment variable / system property. Required for challenge rules: without a configured secret they run in shadow mode, because a random per-start secret would bounce visitors between nodes. |
 | `trustedProxies` | CIDRs of your own proxies. Empty = trust `remote_addr` only and ignore forwarding headers. |
 | `internalNetworks` | never rate-limited or banned (health checks, VPN, localhost). |
@@ -68,8 +120,9 @@ See `config/requestguard.example.json.cfm`. Top-level keys:
 | `strikes` | threshold / window / ban length for the escalation ladder. |
 | `rules` | ordered rules, first terminal match wins. Put `ratelimit` rules above `challenge` rules: an untripped limiter falls through, but a client looping on a challenge never reaches a limiter placed below it. |
 
-Every rule has `mode: enforce | shadow`. Shadow rules are evaluated and reported
-to the sinks but never enforced. Put a new rule in shadow for a week, then flip it.
+Every rule may carry `mode: shadow`; such a rule is evaluated and reported to the
+sinks but never enforced, whatever the global mode. Put a new rule in shadow for
+a week, then remove the key.
 
 ## Rule vocabulary
 

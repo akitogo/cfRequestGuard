@@ -3,6 +3,8 @@
       Generic rules only: anything specific to one site belongs in that
       application's own requestguard.json.cfm, not in this package.
 {
+    "mode": "shadow",
+    "note": "mode: shadow logs every decision as SHADOW ... and enforces nothing; switch to enforce once the log looks right. See README, Shadow and enforce",
     "secret": "env:REQUESTGUARD_SECRET",
     "logFile": "requestguard",
     "trustedProxies": [],

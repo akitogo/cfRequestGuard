@@ -10,6 +10,7 @@ component extends="testbox.system.BaseSpec" {
 		for ( var name in cfg.lists ) { cfg.lists[ name ].sources = []; cfg.lists[ name ].seed = ""; }
 		cfg.lists.googleCrawler.entries = [ "66.249.64.0/19" ];
 		cfg.lists.cloudASN.entries      = [ "20.0.0.0/8", "129.226.0.0/16" ];
+		cfg.mode    = "enforce";          // the example ships in shadow
 		cfg.secret  = "test-secret";
 		cfg.sinks   = [];
 		cfg.strikes = { threshold: 5, windowSeconds: 60, banSeconds: 60 };
