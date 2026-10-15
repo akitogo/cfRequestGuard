@@ -2,6 +2,7 @@
     "name":"cfRequestGuard",
     "slug":"cfrequestguard",
     "version":"0.1.0",
+    "location":"akitogo/cfRequestGuard#v0.1.0",
     "author":"akitogo",
     "homepage":"https://github.com/akitogo/cfRequestGuard",
     "repository":{ "type":"git", "URL":"https://github.com/akitogo/cfRequestGuard" },
