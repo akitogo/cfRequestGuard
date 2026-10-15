@@ -7,7 +7,7 @@ component extends="testbox.system.BaseSpec" {
 
 	function beforeAll(){
 		var cfg = new cfRequestGuard.models.Config().read( expandPath( "/cfRequestGuard/config/requestguard.example.json.cfm" ) );
-		for ( var name in cfg.lists ) { cfg.lists[ name ].sources = []; cfg.lists[ name ].seed = ""; cfg.lists[ name ].cacheDir = ""; }
+		for ( var name in cfg.lists ) { cfg.lists[ name ].sources = []; cfg.lists[ name ].seed = ""; }
 		cfg.lists.googleCrawler.entries = [ "66.249.64.0/19" ];
 		cfg.lists.cloudASN.entries      = [ "20.0.0.0/8", "129.226.0.0/16" ];
 		cfg.secret  = "test-secret";
