@@ -8,7 +8,7 @@
     "repository":{ "type":"git", "URL":"https://github.com/akitogo/cfRequestGuard" },
     "bugs":"https://github.com/akitogo/cfRequestGuard/issues",
     "type":"modules",
-    "shortDescription":"Framework-independent bot, scraper and abuse defence for CFML (Lucee 6, BoxLang 1.x; Adobe ColdFusion untested): ordered rules, verified crawlers, JS challenge, progressive rate limits, strike bans. Optional ColdBox and edge adapters.",
+    "shortDescription":"Framework-independent bot, scraper and abuse defence for CFML (Lucee 6, BoxLang 1.x): ordered rules, verified crawlers, JS challenge, progressive rate limits, strike bans.",
     "keywords":"bot,crawler,scraper,ratelimit,security,waf,haproxy,crowdsec",
     "license":[ { "type":"Apache-2.0", "URL":"https://www.apache.org/licenses/LICENSE-2.0" } ],
     "ignore":[ "tests/", "**/.*" ],
