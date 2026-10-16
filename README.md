@@ -183,7 +183,7 @@ See `config/requestguard.example.json.cfm`. Top-level keys:
 | `trustedProxies` | CIDRs of your own proxies. Empty = trust `remote_addr` only and ignore forwarding headers. |
 | `internalNetworks` | never rate-limited or banned (health checks, VPN, localhost). |
 | `store` | state storage for counters, bans and list copies: `{ "type": "memory" }` (default, per node) or `{ "type": "cachebox", "cacheName": "requestguard" }`. The CacheBox store resolves the region from the running ColdBox controller and serves from memory until it is up. Give it a dedicated region (counters are one key per client address); with a distributed provider, limits and bans become cluster-wide. |
-| `sinks` | where decisions go: `log`, `otel`, `haproxy`, `crowdsec`. |
+| `sinks` | where decisions go: `log`, `otel`, `haproxy`, `crowdsec` (see [Edge feedback](#edge-feedback-haproxy-and-crowdsec)). |
 | `lists` | named IP lists: seed file + refresh URLs + minimum-size floor. Refreshed data is kept in the store under `rg:list:<name>` for `keepDays` (7), so a shared or persistent store means a restart or a second node starts from the last good copy. |
 | `bots` | trusted bots: UA pattern + optional verification: an IP list, or forward-confirmed rDNS (`verify.rdns`, optionally fenced by `verify.ranges` so addresses outside them are spoofed without a lookup). |
 | `rdns` | fences for rDNS lookups, the only verification that touches the network: `maxInFlight` (4) lookups per node at once, `timeoutMs` (1500) per lookup in its own thread, verdicts cached per IP for `cacheSeconds` (86400), timeouts and budget misses for `unknownCacheSeconds` (60). Unknown means ordinary visitor: neither trusted nor spoofed, so a DNS outage can neither stall request threads nor turn the real crawler away. |
@@ -209,6 +209,40 @@ a week, then remove the key.
 `tarpit`, `log`. A deny rule may set `strike: false` to stay out of the ban ladder
 (load protection rather than abuse). Trusted bots are never struck or banned.
 
+## Edge feedback: HAProxy and CrowdSec
+
+The guard decides inside the JVM. Two sinks hand its decisions to the edge so a
+banned address is refused before it reaches a request thread. Both are optional,
+both skip shadow decisions, and both are listed under `sinks`:
+
+```json
+"sinks": [
+    { "type": "log", "file": "requestguard" },
+    { "type": "haproxy", "host": "127.0.0.1", "port": 9999, "map": "/etc/haproxy/requestguard-bans.map" },
+    { "type": "crowdsec",
+      "file": "/var/log/requestguard/decisions.jsonl",
+      "lapi": { "url": "http://lapi.internal:8080", "machineId": "requestguard-www1", "password": "env:CROWDSEC_PASSWORD" } }
+]
+```
+
+`haproxy` adds strike-banned addresses to a map over the HAProxy Runtime API.
+
+`crowdsec` has two paths, usable alone or together:
+
+- **Local, `file`**: one JSON line per decision into a file that the CrowdSec
+  agent on the same host tails. A parser and a scenario on the CrowdSec side
+  turn repeated denies and challenges into bans; whichever bouncer sits in
+  front (HAProxy SPOA, nginx, firewall) enforces them. No credentials, and the
+  file serves any other log consumer too.
+- **Remote, `lapi`**: strike bans (configurable `labels`) are pushed as alerts
+  with a ready decision to a CrowdSec Local API, which may run on another host.
+  The sink logs in as a machine and keeps the token; a `ban` of `duration` 1h
+  by default. One synchronous HTTP call per banned address, failures are
+  logged and the app-side ban still holds.
+
+[docs/crowdsec.md](docs/crowdsec.md) walks through both setups: acquisition,
+parser, scenario, machine registration, and how to verify each step.
+
 ## Layout
 
 ```
@@ -224,7 +258,8 @@ models/Challenge.cfc    HMAC cookie challenge
 models/RateLimiter.cfc  progressive limiter on top of the store
 models/Strikes.cfc      strike counter + temporary bans
 models/store/*          IStore, MemoryStore, CacheBoxStore
-models/sinks/*          ISink, LogSink, OtelSink, HAProxySink, CrowdSecSink
+models/sinks/*          ISink, LogSink, OtelSink, HAProxySink, CrowdSecSink (file + LAPI)
+docs/                   CrowdSec setup, ALTCHA design note
 config/                 example config + list seeds
 tests/                  TestBox specs replaying recorded signatures
 ```
@@ -243,7 +278,7 @@ entries. Add a new signature there before you add the rule.
 
 ## Status
 
-0.1.0. 53 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
+0.1.0. 56 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
 Adobe ColdFusion is untested. In production on a two-node Lucee site behind
 HAProxy since October 2026. The 0.x line may still change the config format
 between minor versions.

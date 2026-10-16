@@ -26,6 +26,35 @@ component extends="testbox.system.BaseSpec" {
 				expect( line.ts ).toMatch( "^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$" );
 				fileDelete( f );
 			} );
+			it( "crowdsec sink skips shadow decisions and, for the LAPI, unlisted labels", function(){
+				var f = getTempDirectory() & "requestguard-" & createUUID() & ".jsonl";
+				var shadow = duplicate( decision ); shadow.mode = "shadow";
+				new cfRequestGuard.models.sinks.CrowdSecSink( { file: f } ).emit( shadow, snap );
+				expect( fileExists( f ) ).toBeFalse();
+				// label not listed: no HTTP call, so an unreachable LAPI is never touched
+				new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p", labels: [ "BLOCK-403-banned" ], timeoutSeconds: 1 } } ).emit( decision, snap );
+				expect( true ).toBeTrue();
+			} );
+			it( "crowdsec sink builds a LAPI alert with a ready decision", function(){
+				var sink = new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1/", machineId: "m", password: "p", duration: "2h", type: "captcha" } } );
+				var a = sink.alert( decision, snap );
+				expect( a.scenario ).toBe( "cfRequestGuard/strike-ban" );
+				expect( a.source.value ).toBe( "203.0.113.1" );
+				expect( a.events_count ).toBe( 1 );
+				expect( a.simulated ).toBeFalse();
+				expect( a.start_at ).toMatch( "^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$" );
+				expect( a.decisions[ 1 ].type ).toBe( "captcha" );
+				expect( a.decisions[ 1 ].duration ).toBe( "2h" );
+				expect( a.decisions[ 1 ].value ).toBe( "203.0.113.1" );
+				expect( a.events[ 1 ].meta[ 1 ].key ).toBe( "source_ip" );
+				var json = serializeJSON( [ a ] );
+				expect( json ).toInclude( '"scenario_hash":""' );
+				expect( isJSON( json ) ).toBeTrue();
+			} );
+			it( "crowdsec sink swallows an unreachable LAPI for a listed label", function(){
+				new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p", labels: [ "BLOCK-403-t" ], timeoutSeconds: 1, logFile: "requestguard-test" } } ).emit( decision, snap );
+				expect( true ).toBeTrue();
+			} );
 		} );
 	}
 

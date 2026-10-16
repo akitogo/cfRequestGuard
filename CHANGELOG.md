@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- CrowdSec sink: besides the local JSON log for acquisition it can now push selected decisions (default: strike bans) as alerts with a ready decision to a CrowdSec Local API, local or remote (`lapi` block: url, machineId, password with `env:` support, labels, scenario, type, duration, timeout). Machine login with a cached token, one retry on 401, failures logged and never thrown into the request.
+- docs/crowdsec.md: step-by-step for both paths (acquisition, parser, scenario, machine registration, verification); README "Edge feedback" section.
+
 ## 0.1.0 (2026-10-15), first public release
 
 Squashed from the private development history (2026-10-09 to 2026-10-15):
