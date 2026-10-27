@@ -7,7 +7,9 @@ component extends="testbox.system.BaseSpec" {
 				rules: [
 					{ name: "deny-curl",  action: "deny", when: { ua: "^curl" } },
 					{ name: "deny-load",  action: "deny", strike: false, when: { path: "^/heavy" } },
-					{ name: "deny-probe", action: "deny", when: { headerPresent: [ "x-probe" ] } }
+					{ name: "deny-probe", action: "deny", when: { headerPresent: [ "x-probe" ] } },
+					{ name: "honeypot",   action: "deny", strike: 2, when: { path: "^/trap" } },
+					{ name: "deny-zero",  action: "deny", strike: 0, when: { path: "^/zero" } }
 				] };
 			var snap = function( ip, ua = "curl/8", path = "/", headers = {} ){
 				var h = duplicate( headers ); h[ "user-agent" ] = ua;
@@ -29,6 +31,27 @@ component extends="testbox.system.BaseSpec" {
 				for ( var i = 1; i <= 5; i++ ) expect( guard.inspect( snap( "203.0.113.3", "UptimeRobot/2.0", "/", { "x-probe": "1" } ) ).label ).toBe( "BLOCK-403-deny-probe" );
 				expect( guard.inspect( snap( "203.0.113.3", "UptimeRobot/2.0" ) ).action ).toBe( "allow" );
 				expect( guard.getStrikes().isBanned( "203.0.113.3" ) ).toBeFalse();
+			} );
+			it( "a weighted deny counts its weight: one honeypot hit reaches the threshold", function(){
+				var guard = new cfRequestGuard.RequestGuard( base );
+				expect( guard.inspect( snap( "203.0.113.5", "Mozilla/5.0", "/trap" ) ).label ).toBe( "BLOCK-403-honeypot" );
+				expect( guard.inspect( snap( "203.0.113.5", "Mozilla/5.0" ) ).label ).toBe( "BLOCK-403-banned" );
+			} );
+			it( "strike: 0 behaves like strike: false", function(){
+				var guard = new cfRequestGuard.RequestGuard( base );
+				for ( var i = 1; i <= 5; i++ ) guard.inspect( snap( "203.0.113.6", "Mozilla/5.0", "/zero" ) );
+				expect( guard.inspect( snap( "203.0.113.6", "Mozilla/5.0" ) ).action ).toBe( "allow" );
+			} );
+			it( "a weighted deny never bans a trusted bot", function(){
+				var guard = new cfRequestGuard.RequestGuard( base );
+				guard.inspect( snap( "203.0.113.7", "UptimeRobot/2.0", "/trap" ) );
+				expect( guard.getStrikes().isBanned( "203.0.113.7" ) ).toBeFalse();
+			} );
+			it( "a weighted deny in shadow mode strikes nothing", function(){
+				var cfg = duplicate( base ); cfg.mode = "shadow";
+				var guard = new cfRequestGuard.RequestGuard( cfg );
+				guard.inspect( snap( "203.0.113.8", "Mozilla/5.0", "/trap" ) );
+				expect( guard.getStrikes().isBanned( "203.0.113.8" ) ).toBeFalse();
 			} );
 			it( "an existing ban does not apply to a trusted bot sharing the address", function(){
 				var guard = new cfRequestGuard.RequestGuard( base );

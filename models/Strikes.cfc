@@ -1,5 +1,5 @@
 /**
- * Escalation ladder: every deny is a strike; `threshold` strikes inside
+ * Escalation ladder: every deny is a strike (a rule may weigh it, `strike: 10`); `threshold` strikes inside
  * `windowSeconds` earn a ban of `banSeconds`. The ban is one store lookup
  * at the top of inspect(), so repeat offenders cost almost nothing even on
  * deployments with no edge in front. threshold 0 disables the ladder.
@@ -24,9 +24,13 @@ component {
 	}
 
 	/** @return strike count inside the current window */
-	numeric function strike( required string ip ){
-		if ( variables.cfg.threshold <= 0 ) return 0;
-		var count = variables.store.increment( "rg:strike:" & arguments.ip, variables.cfg.windowSeconds );
+	numeric function strike( required string ip, numeric weight = 1 ){
+		if ( variables.cfg.threshold <= 0 || arguments.weight <= 0 ) return 0;
+		// the store only increments by one; a weight never needs more steps than the threshold
+		var count = 0;
+		for ( var i = 1; i <= min( arguments.weight, variables.cfg.threshold ); i++ ) {
+			count = variables.store.increment( "rg:strike:" & arguments.ip, variables.cfg.windowSeconds );
+		}
 		if ( count >= variables.cfg.threshold ) {
 			variables.store.set( "rg:ban:" & arguments.ip, now(), variables.cfg.banSeconds );
 		}

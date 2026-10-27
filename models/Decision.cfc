@@ -25,7 +25,7 @@ component {
 			headers               : {},
 			sleepMs               : 0,
 			sessionTimeoutSeconds : 0,
-			strike                : true,
+			strike                : 1,
 			detail                : ""
 		};
 		switch ( d.action ) {

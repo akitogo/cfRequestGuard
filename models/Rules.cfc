@@ -5,7 +5,7 @@
  *
  * rule: { name, label, mode: enforce|shadow, when: {}, unless: [], action,
  *         status, body, contentType, headers, sleepMs | [min,max],
- *         sessionTimeoutSeconds, message, strike (deny only, default true),
+ *         sessionTimeoutSeconds, message, strike (deny only: true|false|weight, default true = 1),
  *         respectChallenge (challenge only, default true),
  *         limit: "20/3s", limitWithSession: "60/3s", sessionCookie, key: ip|ip+ua|cookie:<n>|header:<n>|custom:<n> }
  */
@@ -92,8 +92,10 @@ component {
 				for ( var k in [ "status", "statusText", "body", "contentType", "headers", "sessionTimeoutSeconds", "detail" ] ) {
 					if ( structKeyExists( r, k ) ) over[ k ] = r[ k ];
 				}
-				// strike: false keeps a deny out of the ban ladder (load protection, not abuse)
-				over.strike = r.strike ?: true;
+				// strike: false keeps a deny out of the ban ladder (load protection, not abuse);
+				// a number weighs the deny, e.g. a honeypot hit worth the whole threshold
+				var strike = r.strike ?: true;
+				over.strike = isNumeric( strike ) ? max( 0, int( strike ) ) : ( strike ? 1 : 0 );
 				if ( structKeyExists( r, "sleepMs" ) ) {
 					over.sleepMs = isArray( r.sleepMs ) ? randRange( r.sleepMs[ 1 ], r.sleepMs[ 2 ] ) : r.sleepMs;
 				}

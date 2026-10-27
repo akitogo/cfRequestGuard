@@ -207,7 +207,8 @@ a week, then remove the key.
 
 `action`: `allow`, `deny`, `ignore` (200 + abort), `challenge`, `ratelimit`,
 `tarpit`, `log`. A deny rule may set `strike: false` to stay out of the ban ladder
-(load protection rather than abuse). Trusted bots are never struck or banned.
+(load protection rather than abuse), or a number to weigh the deny: `strike: 10`
+on a honeypot path bans on the first hit with the default threshold. Trusted bots are never struck or banned.
 
 ## Edge feedback: HAProxy and CrowdSec
 

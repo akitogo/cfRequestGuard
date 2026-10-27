@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Strike weight: a deny rule's `strike` takes a number besides true/false, so one hit can count for several strikes (`strike: 10` bans on the first hit with the default threshold of 10). Meant for honeypot paths no browser and no well-behaved crawler ever requests.
 - CrowdSec sink: besides the local JSON log for acquisition it can now push selected decisions (default: strike bans) as alerts with a ready decision to a CrowdSec Local API, local or remote (`lapi` block: url, machineId, password with `env:` support, labels, scenario, type, duration, timeout). Machine login with a cached token, one retry on 401, failures logged and never thrown into the request.
 - docs/crowdsec.md: step-by-step for both paths (acquisition, parser, scenario, machine registration, verification); README "Edge feedback" section.
 

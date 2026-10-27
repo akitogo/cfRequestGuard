@@ -90,8 +90,8 @@ component {
 
 		var d = result.decision;
 		if ( d.action == "allow" ) return d;
-		if ( d.action == "deny" && d.strike && !snap.internalIP && !snap.bot.trusted && !isShadow() ) {
-			variables.strikes.strike( snap.clientIP );
+		if ( d.action == "deny" && d.strike > 0 && !snap.internalIP && !snap.bot.trusted && !isShadow() ) {
+			variables.strikes.strike( snap.clientIP, d.strike );
 		}
 		return finish( d, snap );
 	}
