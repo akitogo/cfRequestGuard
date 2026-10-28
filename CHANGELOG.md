@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-10-28)
 
 - Verifier: a crawler allow-list whose generation stamp is older than `maxAgeDays` is still used for verification. Before, a stale list made the bot "unusable" and every client wearing its UA was trusted unverified, skipping the strike ban and every `unless: trustedBot` rule; Bing's bingbot.json has carried `creationTime` 2024-01-03 for years, so a spoofed bingbot UA bypassed everything. Only a list with no data at all still disarms. The reason string carries "(list stale)". New `Lists.hasData()`.
 - Strike weight: a deny rule's `strike` takes a number besides true/false, so one hit can count for several strikes (`strike: 10` bans on the first hit with the default threshold of 10). Meant for honeypot paths no browser and no well-behaved crawler ever requests.

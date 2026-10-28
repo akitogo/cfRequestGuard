@@ -1,17 +1,16 @@
 # Working notes
 
-Where things stand and what to pick up next. Updated 2026-10-17. The README
+Where things stand and what to pick up next. Updated 2026-10-28. The README
 "Status" section is the public summary; this file is the longer version for
 whoever continues the work.
 
 ## State
 
-- Released: 0.1.0 (2026-10-15), tag `v0.1.0`, GitHub release, ForgeBox
-  `cfrequestguard`. `box install cfrequestguard` resolves to the tag.
-- On `main` since the release, unreleased: the CrowdSec LAPI path of the
-  `crowdsec` sink and `docs/crowdsec.md` (commit 4ecbf30), README "Edge
-  feedback" section, README/box.json follow-ups. CHANGELOG has an
-  "Unreleased" block. 56 specs green on Lucee 6.2.7 and BoxLang 1.18.
+- Released: 0.2.0 (2026-10-28), tag `v0.2.0`: CrowdSec LAPI sink (still
+  unverified against a real Local API, marked experimental in the README),
+  strike weight, stale allow-lists still verify (a stale list used to make
+  every client wearing the bot's UA trusted). 63 specs green on Lucee 6.2.7,
+  BoxLang check clean. 0.1.0 (2026-10-15) was the first public release.
 - In production on a two-node Lucee 6.2.9 site behind HAProxy since
   2026-10-14, enforce mode, CacheBox store, log sink only. The site's own
   rules live in its private config and are not part of this repository.
@@ -38,12 +37,12 @@ whoever continues the work.
   `cfthread` with attributes and `createObject("java", ...)` for the atomics
   are the places to look first.
 
-## Next release (0.2.0)
+## Next release (0.3.0)
 
-1. Verify the LAPI sink (above) or mark it experimental in the README.
+1. Verify the LAPI sink (above) and drop the "experimental" note in the README.
 2. Bump `version` and the `location` tag in `box.json`, move the CHANGELOG
    "Unreleased" block under `## 0.2.0 (date)`.
-3. `git tag v0.2.0 && git push --tags`, `gh release create v0.2.0 --notes-file CHANGELOG.md`
+3. `git tag v0.3.0 && git push --tags`, `gh release create v0.3.0 --notes-file CHANGELOG.md`
    (or paste the section), `box publish` from the package root.
 4. Downstream clones: `git submodule update --remote` or pin the new SHA.
 

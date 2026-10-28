@@ -235,8 +235,11 @@ both skip shadow decisions, and both are listed under `sinks`:
   turn repeated denies and challenges into bans; whichever bouncer sits in
   front (HAProxy SPOA, nginx, firewall) enforces them. No credentials, and the
   file serves any other log consumer too.
-- **Remote, `lapi`**: strike bans (configurable `labels`) are pushed as alerts
-  with a ready decision to a CrowdSec Local API, which may run on another host.
+- **Remote, `lapi`** (experimental: the alert follows the v1 model and is covered
+  by specs, but has not yet been exercised against a running Local API; a 422 in
+  the guard's log means a field was rejected): strike bans (configurable `labels`)
+  are pushed as alerts with a ready decision to a CrowdSec Local API, which may
+  run on another host.
   The sink logs in as a machine and keeps the token; a `ban` of `duration` 1h
   by default. One synchronous HTTP call per banned address, failures are
   logged and the app-side ban still holds.
@@ -279,7 +282,7 @@ entries. Add a new signature there before you add the rule.
 
 ## Status
 
-0.1.0. 56 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
+0.2.0. 63 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
 Adobe ColdFusion is untested. In production on a two-node Lucee site behind
 HAProxy since October 2026. The 0.x line may still change the config format
 between minor versions.
