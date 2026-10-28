@@ -152,12 +152,16 @@ component implements="ISink" {
 				writeLog( file = variables.logFile, type = "information", text = "cfRequestGuard crowdsec: #variables.lapi.type# pushed for #arguments.snap.clientIP#, #variables.lapi.duration# (#arguments.decision.rule#)" );
 			}
 		} catch ( any e ) {
-			writeLog( file = variables.logFile, type = "warning", text = "cfRequestGuard crowdsec: LAPI unreachable (#e.message#); the app-side ban still holds" );
+			writeLog( file = variables.logFile, type = "warning", text = "cfRequestGuard crowdsec: push failed for #arguments.snap.clientIP# (#e.type#: #e.message#); the app-side ban still holds" );
 		}
 	}
 
-	/** Machine login, token cached for 50 minutes (LAPI issues one-hour tokens). */
-	private string function token(){
+	/**
+	 * Machine login, token cached for 50 minutes (LAPI issues one-hour tokens).
+	 * Not named token(): on Lucee a call to token() inside this component resolves
+	 * to the variables.token string and fails with "No matching function [TOKEN]".
+	 */
+	string function lapiToken(){
 		if ( len( variables.token ) && isDate( variables.tokenSince ) && dateDiff( "n", variables.tokenSince, now() ) < 50 ) return variables.token;
 		var res = post( "/v1/watchers/login", serializeJSON( {
 			"machine_id" : variables.lapi.machineId,
@@ -173,7 +177,7 @@ component implements="ISink" {
 	}
 
 	private struct function post( required string path, required string body, required boolean authed ){
-		var bearer = arguments.authed ? token() : "";
+		var bearer = arguments.authed ? lapiToken() : "";
 		cfhttp( url = variables.lapi.url & arguments.path, method = "POST", timeout = variables.lapi.timeoutSeconds, result = "local.res" ) {
 			cfhttpparam( type = "header", name = "Content-Type", value = "application/json" );
 			// the LAPI parses the User-Agent as software/version on login; a bare name yields a misleading 401

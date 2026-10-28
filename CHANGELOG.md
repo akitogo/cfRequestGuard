@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- CrowdSec LAPI sink: the login function was named `token()`, which Lucee resolves to the cached `variables.token` string inside the component, so every push failed with "No matching function [TOKEN]"; renamed, and a spec now drives the login path. Sink exceptions are logged once per sink and minute instead of being swallowed; the guard logs its sink list and the CrowdSec sink its LAPI target at load.
+
 ## 0.2.1 (2026-10-28)
 
 - CrowdSec LAPI sink, from the first real deployment: one push per address and `repushSeconds` (default 600) instead of one per request of a banned client; `origin` configurable (`cscli` for bouncers that only act on known origins); `machineId` accepts `env:NAME` like the password, so one config serves several nodes; `User-Agent: cfRequestGuard/<version>`, which the LAPI's login parser requires; an information line per successful push.

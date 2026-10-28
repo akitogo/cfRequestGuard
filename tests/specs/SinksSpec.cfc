@@ -68,6 +68,12 @@ component extends="testbox.system.BaseSpec" {
 				short.recentlyPushed( "203.0.113.1" );
 				expect( short.recentlyPushed( "203.0.113.1" ) ).toBeFalse();  // window over: push again
 			} );
+			it( "crowdsec sink's login reaches the network (the HTTP error, not a function-resolution error)", function(){
+				var sink = new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p", timeoutSeconds: 1 } } );
+				var caught = "";
+				try { sink.lapiToken(); } catch ( any e ) { caught = e.type; }
+				expect( caught ).toBe( "cfRequestGuard.CrowdSecHttp" );
+			} );
 			it( "crowdsec sink swallows an unreachable LAPI for a listed label", function(){
 				new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p", labels: [ "BLOCK-403-t" ], timeoutSeconds: 1, logFile: "requestguard-test" } } ).emit( decision, snap );
 				expect( true ).toBeTrue();
