@@ -51,6 +51,23 @@ component extends="testbox.system.BaseSpec" {
 				expect( json ).toInclude( '"scenario_hash":""' );
 				expect( isJSON( json ) ).toBeTrue();
 			} );
+			it( "crowdsec sink takes origin and env: machineId from the config", function(){
+				var sys = createObject( "java", "java.lang.System" );
+				sys.setProperty( "RG_TEST_MACHINE", "requestguard-test" );
+				var sink = new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "env:RG_TEST_MACHINE", password: "p", origin: "cscli" } } );
+				expect( sink.alert( decision, snap ).decisions[ 1 ].origin ).toBe( "cscli" );
+				expect( sink.getLapi().machineId ).toBe( "requestguard-test" );
+				expect( new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p" } } ).alert( decision, snap ).decisions[ 1 ].origin ).toBe( "cfRequestGuard" );
+			} );
+			it( "crowdsec sink pushes an address once per repushSeconds, however many ban decisions it produces", function(){
+				var sink = new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p", repushSeconds: 600 } } );
+				expect( sink.recentlyPushed( "203.0.113.1" ) ).toBeFalse();   // first sight: push
+				expect( sink.recentlyPushed( "203.0.113.1" ) ).toBeTrue();    // within the window: skip
+				expect( sink.recentlyPushed( "203.0.113.2" ) ).toBeFalse();   // another address: push
+				var short = new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p", repushSeconds: 0 } } );
+				short.recentlyPushed( "203.0.113.1" );
+				expect( short.recentlyPushed( "203.0.113.1" ) ).toBeFalse();  // window over: push again
+			} );
 			it( "crowdsec sink swallows an unreachable LAPI for a listed label", function(){
 				new cfRequestGuard.models.sinks.CrowdSecSink( { lapi: { url: "http://127.0.0.1:1", machineId: "m", password: "p", labels: [ "BLOCK-403-t" ], timeoutSeconds: 1, logFile: "requestguard-test" } } ).emit( decision, snap );
 				expect( true ).toBeTrue();

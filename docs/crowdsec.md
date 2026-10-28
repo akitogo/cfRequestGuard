@@ -187,8 +187,8 @@ reverse proxy) and use an `https://` URL in the sink.
     { "type": "crowdsec",
       "lapi": {
         "url": "http://lapi.internal:8080",
-        "machineId": "requestguard-www1",
-        "password": "env:CROWDSEC_PASSWORD",
+        "machineId": "env:CROWDSEC_MACHINE_ID",
+        "password": "env:CROWDSEC_MACHINE_PASSWORD",
         "labels": [ "BLOCK-403-banned" ],
         "scenario": "cfRequestGuard/strike-ban",
         "type": "ban",
@@ -206,7 +206,14 @@ reverse proxy) and use an `https://` URL in the sink.
 | `scenario` | `cfRequestGuard/strike-ban` | scenario name on the alert and its decision; what `cscli decisions list` shows as reason. |
 | `type` | `ban` | decision type: `ban`, or `captcha` for bouncers that render one. |
 | `duration` | `1h` | decision lifetime at the edge; CrowdSec expires it on its own. Match it to `strikes.banSeconds`. |
+| `origin` | `cfRequestGuard` | decision origin. `cscli` makes bouncers and the console treat it like a manual ban, which some setups require. |
+| `repushSeconds` | `600` | one push per address and window. A banned client keeps sending requests and every one is a ban decision; without this the LAPI would get one alert per request. |
 | `timeoutSeconds` | `2` | per HTTP call. |
+
+`machineId` and `password` accept `env:NAME`, so the same config file serves
+every node when each sets its own `CROWDSEC_MACHINE_ID`. The sink sends
+`User-Agent: cfRequestGuard/<version>`: the LAPI parses it as software/version
+on login and answers a misleading 401 to anything else.
 
 The sink keeps the login token for 50 minutes (LAPI tokens last an hour),
 retries once after a 401, and writes a warning to the guard's log when the

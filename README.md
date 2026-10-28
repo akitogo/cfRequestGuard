@@ -222,7 +222,7 @@ both skip shadow decisions, and both are listed under `sinks`:
     { "type": "haproxy", "host": "127.0.0.1", "port": 9999, "map": "/etc/haproxy/requestguard-bans.map" },
     { "type": "crowdsec",
       "file": "/var/log/requestguard/decisions.jsonl",
-      "lapi": { "url": "http://lapi.internal:8080", "machineId": "requestguard-www1", "password": "env:CROWDSEC_PASSWORD" } }
+      "lapi": { "url": "http://lapi.internal:8080", "machineId": "env:CROWDSEC_MACHINE_ID", "password": "env:CROWDSEC_MACHINE_PASSWORD" } }
 ]
 ```
 
