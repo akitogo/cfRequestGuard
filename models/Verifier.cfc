@@ -18,7 +18,7 @@
  * is handled like any ordinary visitor: not trusted, not spoofed.
  *
  * classify() -> { name, category, claims, trusted, verified, spoofed, reason }
- *   trusted  : may skip defensive rules (verified, or no verification possible)
+ *   trusted  : may skip defensive rules (verified, or no verification possible: empty list)
  *   spoofed  : claims a verifiable bot and failed verification -> deny material
  */
 component {
@@ -57,13 +57,18 @@ component {
 
 			if ( structKeyExists( b.verify, "ipList" ) ) {
 				var maxAge = b.verify.maxAgeDays ?: 30;
-				if ( !variables.lists.has( b.verify.ipList ) || !variables.lists.isUsable( b.verify.ipList, maxAge ) ) {
-					// a missing or stale allow-list must disarm, never deny
-					r.trusted = true; r.reason = "list '#b.verify.ipList#' unusable, UA trusted";
-				} else if ( variables.lists.contains( b.verify.ipList, arguments.snap.clientIP ) ) {
-					r.trusted = true; r.verified = true; r.reason = "ip in #b.verify.ipList#";
+				if ( !variables.lists.has( b.verify.ipList ) || !variables.lists.hasData( b.verify.ipList ) ) {
+					// an allow-list with no data at all must disarm, never deny: nothing to check against
+					r.trusted = true; r.reason = "list '#b.verify.ipList#' empty, UA trusted";
 				} else {
-					r.spoofed = true; r.reason = "ip #arguments.snap.clientIP# not in #b.verify.ipList#";
+					// stale data still verifies: trusting every claim instead would let any client
+					// wearing the UA skip the strike ban and every trustedBot exemption
+					var stale = variables.lists.isUsable( b.verify.ipList, maxAge ) ? "" : " (list stale)";
+					if ( variables.lists.contains( b.verify.ipList, arguments.snap.clientIP ) ) {
+						r.trusted = true; r.verified = true; r.reason = "ip in #b.verify.ipList##stale#";
+					} else {
+						r.spoofed = true; r.reason = "ip #arguments.snap.clientIP# not in #b.verify.ipList##stale#";
+					}
 				}
 			} else if ( structKeyExists( b.verify, "rdns" ) ) {
 				if ( !isNull( b.ranges ) && !variables.cidr.contains( b.ranges, arguments.snap.clientIP ) ) {

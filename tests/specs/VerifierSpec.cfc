@@ -62,6 +62,33 @@ component extends="testbox.system.BaseSpec" {
 				expect( guard.getVerifier().getInFlight().get() ).toBe( 2 );        // a refused attempt does not leak a slot
 			} );
 		} );
+
+		describe( "IP-list bot verification", function(){
+			var snap = function( ip, ua = "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)" ){
+				return { method: "GET", path: "/", query: "", host: "h", remoteAddr: ip, clientIP: ip, headers: {}, cookies: {}, ua: ua, referer: "", now: now() };
+			};
+			var make = function( struct lists, numeric maxAgeDays = 30 ){
+				return new cfRequestGuard.RequestGuard( { secret: "x", sinks: [], rules: [], lists: lists,
+					bots: [ { name: "bingbot", category: "search", ua: "bingbot", verify: { ipList: "bing", maxAgeDays: maxAgeDays } } ] } );
+			};
+
+			it( "verifies against a stale list instead of trusting the claim (bingbot.json is stamped 2024)", function(){
+				var guard = make( { bing: { seed: expandPath( "/tests/fixtures/stale-seed.json" ), format: "google-json" } } );
+				var real = guard.getVerifier().classify( snap( "40.77.167.5" ) );
+				expect( real.trusted ).toBeTrue(); expect( real.verified ).toBeTrue(); expect( real.reason ).toInclude( "stale" );
+				var fake = guard.getVerifier().classify( snap( "198.51.100.9" ) );
+				expect( fake.trusted ).toBeFalse(); expect( fake.spoofed ).toBeTrue(); expect( fake.reason ).toInclude( "stale" );
+			} );
+			it( "reports a fresh list without the stale marker", function(){
+				var guard = make( { bing: { seed: expandPath( "/tests/fixtures/stale-seed.json" ), format: "google-json" } }, 36500 );
+				expect( guard.getVerifier().classify( snap( "40.77.167.5" ) ).reason ).notToInclude( "stale" );
+			} );
+			it( "trusts the UA only when the list has no data at all", function(){
+				var guard = make( { bing: { format: "google-json", sources: [] } } );
+				var r = guard.getVerifier().classify( snap( "198.51.100.9" ) );
+				expect( r.trusted ).toBeTrue(); expect( r.verified ).toBeFalse(); expect( r.spoofed ).toBeFalse(); expect( r.reason ).toInclude( "empty" );
+			} );
+		} );
 	}
 
 }

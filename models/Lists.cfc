@@ -57,6 +57,12 @@ component {
 		return structKeyExists( variables.state, arguments.name );
 	}
 
+	/** Any data present, however old: a stale allow-list still verifies better than none. */
+	boolean function hasData( required string name ){
+		var s = variables.state[ arguments.name ] ?: "";
+		return isStruct( s ) && s.set.count > 0;
+	}
+
 	/** Data present and its generation stamp younger than maxAgeDays. */
 	boolean function isUsable( required string name, numeric maxAgeDays = 30 ){
 		var s = variables.state[ arguments.name ] ?: "";
