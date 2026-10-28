@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 (2026-10-28)
 
 - CrowdSec LAPI sink: the login function was named `token()`, which Lucee resolves to the cached `variables.token` string inside the component, so every push failed with "No matching function [TOKEN]"; renamed, and a spec now drives the login path. Sink exceptions are logged once per sink and minute instead of being swallowed; the guard logs its sink list and the CrowdSec sink its LAPI target at load.
 

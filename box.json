@@ -1,8 +1,8 @@
 {
     "name":"cfRequestGuard",
     "slug":"cfrequestguard",
-    "version":"0.2.1",
-    "location":"akitogo/cfRequestGuard#v0.2.1",
+    "version":"0.2.2",
+    "location":"akitogo/cfRequestGuard#v0.2.2",
     "author":"akitogo",
     "homepage":"https://github.com/akitogo/cfRequestGuard",
     "repository":{ "type":"git", "URL":"https://github.com/akitogo/cfRequestGuard" },

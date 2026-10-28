@@ -282,7 +282,7 @@ entries. Add a new signature there before you add the rule.
 
 ## Status
 
-0.2.1. 65 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
+0.2.2. 66 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
 Adobe ColdFusion is untested. In production on a two-node Lucee site behind
 HAProxy since October 2026. The 0.x line may still change the config format
 between minor versions.
