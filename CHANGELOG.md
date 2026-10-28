@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 (2026-10-28)
 
 - CrowdSec LAPI sink, from the first real deployment: one push per address and `repushSeconds` (default 600) instead of one per request of a banned client; `origin` configurable (`cscli` for bouncers that only act on known origins); `machineId` accepts `env:NAME` like the password, so one config serves several nodes; `User-Agent: cfRequestGuard/<version>`, which the LAPI's login parser requires; an information line per successful push.
 
