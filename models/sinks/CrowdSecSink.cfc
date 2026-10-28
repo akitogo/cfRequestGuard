@@ -45,6 +45,11 @@ component implements="ISink" {
 			variables.lapi.url       = reReplace( variables.lapi.url, "/+$", "" );
 			variables.lapi.machineId = resolve( variables.lapi.machineId );
 			variables.lapi.password  = resolve( variables.lapi.password );
+			if ( !len( variables.lapi.machineId ) || !len( variables.lapi.password ) ) {
+				writeLog( file = variables.logFile, type = "warning", text = "cfRequestGuard crowdsec: LAPI #variables.lapi.url# configured but machineId or password is empty (env not set?); pushes will fail with 401" );
+			} else {
+				writeLog( file = variables.logFile, type = "information", text = "cfRequestGuard crowdsec: LAPI #variables.lapi.url# as machine #variables.lapi.machineId#, labels #arrayToList( variables.lapi.labels )#, #variables.lapi.type# #variables.lapi.duration#" );
+			}
 		}
 		variables.token      = "";
 		variables.tokenSince = "";

@@ -26,7 +26,11 @@ component {
 		variables.limiter   = new models.RateLimiter( variables.store, variables.decision );
 		variables.strikes   = new models.Strikes( variables.config.strikes, variables.store );
 		variables.sinks     = createSinks( variables.config.sinks );
+		variables.sinkFail  = {};
 		variables.rules     = new models.Rules( variables.config.rules, this );
+		var names = [];
+		for ( var s in variables.sinks ) arrayAppend( names, listLast( getMetadata( s ).name, "." ) );
+		writeLog( file = variables.config.logFile, type = "information", text = "cfRequestGuard sinks: " & arrayToList( names, ", " ) );
 		return this;
 	}
 
@@ -168,6 +172,7 @@ component {
 	any function getChallenge(){ return variables.challenge; }
 	any function getLimiter(){ return variables.limiter; }
 	any function getStrikes(){ return variables.strikes; }
+	array function getSinks(){ return variables.sinks; }
 	any function getStore(){ return variables.store; }
 	any function getClientIP(){ return variables.clientIP; }
 	struct function getCustomPredicates(){ return variables.customPredicates; }
@@ -208,7 +213,14 @@ component {
 			try {
 				sink.emit( arguments.d, arguments.snap );
 			} catch ( any e ) {
-				// a broken sink must never break the request
+				// a broken sink must never break the request, but it must be visible: one line per sink and minute
+				var name = listLast( getMetadata( sink ).name, "." );
+				var last = variables.sinkFail[ name ] ?: "";
+				if ( !isDate( last ) || dateDiff( "s", last, now() ) >= 60 ) {
+					variables.sinkFail[ name ] = now();
+					var where = arrayLen( e.tagContext ?: [] ) ? " at #listLast( e.tagContext[ 1 ].template, "/" )#:#e.tagContext[ 1 ].line#" : "";
+					writeLog( file = variables.config.logFile, type = "warning", text = "cfRequestGuard sink #name# failed#where#: #e.message# #e.detail ?: ''#" );
+				}
 			}
 		}
 	}
