@@ -8,6 +8,8 @@
  *
  * cfg: { host: "127.0.0.1", port: 9999, map: "/etc/haproxy/requestguard-bans.map", labels: [ "BLOCK-403-banned" ] }
  * Only decisions whose label is listed are forwarded (default: strike bans).
+ * The guard wraps this sink in AsyncSink, so the socket write runs off the
+ * request thread (`async: false` to opt out).
  * Entries expire on the HAProxy side only if you clear them; a cron doing
  * `clear map` daily, or a stick-table based variant, is the usual answer.
  */

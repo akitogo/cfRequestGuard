@@ -29,7 +29,7 @@ component {
 		variables.sinkFail  = {};
 		variables.rules     = new models.Rules( variables.config.rules, this );
 		var names = [];
-		for ( var s in variables.sinks ) arrayAppend( names, listLast( getMetadata( s ).name, "." ) );
+		for ( var s in variables.sinks ) arrayAppend( names, sinkName( s ) );
 		writeLog( file = variables.config.logFile, type = "information", text = "cfRequestGuard sinks: " & arrayToList( names, ", " ) );
 		return this;
 	}
@@ -208,13 +208,18 @@ component {
 		return arguments.d;
 	}
 
+	/**
+	 * Hands the decision to every sink, in order, on the request thread. Sinks
+	 * that talk to the network are wrapped in AsyncSink by createSinks(), so
+	 * their emit() returns after starting a thread; log and otel stay inline.
+	 */
 	private void function emit( required struct d, required struct snap ){
 		for ( var sink in variables.sinks ) {
 			try {
 				sink.emit( arguments.d, arguments.snap );
 			} catch ( any e ) {
 				// a broken sink must never break the request, but it must be visible: one line per sink and minute
-				var name = listLast( getMetadata( sink ).name, "." );
+				var name = sinkName( sink );
 				var last = variables.sinkFail[ name ] ?: "";
 				if ( !isDate( last ) || dateDiff( "s", last, now() ) >= 60 ) {
 					variables.sinkFail[ name ] = now();
@@ -234,17 +239,40 @@ component {
 		}
 	}
 
+	/**
+	 * Sinks that leave the JVM (haproxy, crowdsec) are delivered off the request
+	 * thread by default (`async: false` per sink turns that off, `asyncMaxInFlight`
+	 * bounds it, default 8). The otel sink annotates the current request's span
+	 * and is never wrapped; log is cheap and stays inline unless asked.
+	 */
 	private array function createSinks( required array cfgs ){
 		var out = [];
 		for ( var cfg in arguments.cfgs ) {
-			switch ( lCase( cfg.type ?: "log" ) ) {
-				case "otel":     arrayAppend( out, new models.sinks.OtelSink( cfg ) ); break;
-				case "haproxy":  arrayAppend( out, new models.sinks.HAProxySink( cfg ) ); break;
-				case "crowdsec": arrayAppend( out, new models.sinks.CrowdSecSink( cfg ) ); break;
-				default:         arrayAppend( out, new models.sinks.LogSink( cfg ) );
+			var type = lCase( cfg.type ?: "log" );
+			var sink = "";
+			switch ( type ) {
+				case "otel":     sink = new models.sinks.OtelSink( cfg ); break;
+				case "haproxy":  sink = new models.sinks.HAProxySink( cfg ); break;
+				case "crowdsec": sink = new models.sinks.CrowdSecSink( cfg ); break;
+				default:         sink = new models.sinks.LogSink( cfg );
 			}
+			var async = structKeyExists( cfg, "async" ) ? ( cfg.async == true ) : ( listFind( "haproxy,crowdsec", type ) > 0 );
+			if ( type == "otel" ) async = false;
+			if ( async ) {
+				var asyncCfg = { logFile: variables.config.logFile };
+				if ( structKeyExists( cfg, "asyncMaxInFlight" ) ) asyncCfg.maxInFlight = cfg.asyncMaxInFlight;
+				sink = new models.sinks.AsyncSink( sink, asyncCfg );
+			}
+			arrayAppend( out, sink );
 		}
 		return out;
+	}
+
+	/** "HAProxySink (async)" for a wrapped sink, the component name otherwise. */
+	private string function sinkName( required any sink ){
+		var name = listLast( getMetadata( arguments.sink ).name, "." );
+		if ( name == "AsyncSink" ) return listLast( getMetadata( arguments.sink.getInner() ).name, "." ) & " (async)";
+		return name;
 	}
 
 	/** `env:NAME` -> environment variable or JVM system property. Missing secret -> random per start, with a warning. */

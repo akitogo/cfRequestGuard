@@ -22,9 +22,11 @@
  *   }
  * }
  * machineId and password take `env:NAME`, so one config file serves several
- * nodes. The LAPI call is synchronous but only runs for the listed labels and
- * only once per address and repushSeconds (a banned client keeps sending
- * requests, each one a ban decision), and it never throws into the request.
+ * nodes. The LAPI call only runs for the listed labels and only once per
+ * address and repushSeconds (a banned client keeps sending requests, each one
+ * a ban decision), and it never throws into the request. The guard wraps this
+ * sink in AsyncSink, so the call runs off the request thread (`async: false`
+ * to opt out).
  * origin "cscli" makes bouncers and the console treat the decision like a
  * manual ban; some setups only act on origins they know.
  */
@@ -186,7 +188,10 @@ component implements="ISink" {
 			cfhttpparam( type = "body", value = arguments.body );
 		}
 		var status = val( res.statusCode ?: 0 );
-		if ( status == 0 ) throw( type = "cfRequestGuard.CrowdSecHttp", message = ( res.errorDetail ?: "no response" ) );
+		// no connection: Lucee reports status 0, BoxLang a synthetic 502 with "Connection Failure" as the body
+		if ( status == 0 || ( len( res.errorDetail ?: "" ) && ( res.fileContent ?: "" ) == "Connection Failure" ) ) {
+			throw( type = "cfRequestGuard.CrowdSecHttp", message = ( res.errorDetail ?: "no response" ) );
+		}
 		return { status: status, body: isSimpleValue( res.fileContent ?: "" ) ? res.fileContent : "" };
 	}
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3 (2026-10-29)
+
+- Sinks that leave the JVM (`haproxy`, `crowdsec`) are delivered off the request thread. Until now every sink ran synchronously inside `emit()`, so a slow HAProxy stats socket or CrowdSec Local API (up to four HTTP calls of `timeoutSeconds` each on a cold token) was paid by the blocked request. New `models/sinks/AsyncSink.cfc` decorator: one short-lived thread per decision, at most `asyncMaxInFlight` (8) in flight per sink, decisions beyond that dropped and logged once a minute rather than queued or delivered inline; a throwing inner sink is counted and logged, never thrown. `"async": false` per sink entry opts out, `"async": true` moves a `log` sink off the thread too; `otel` is never wrapped. The sink list logged at load reads `HAProxySink (async)`.
+- CrowdSec LAPI sink on BoxLang: a refused connection comes back as a synthetic 502 with body "Connection Failure", not status 0, so it was reported as a login failure (`CrowdSecLogin`, "login answered 502") instead of a connection failure; both shapes are now `CrowdSecHttp`.
+- Specs: `AsyncSinkSpec` (4) with a `SlowSink` double. Kept out of `SinksSpec.cfc`: at that size Lucee 6.2.7 split the compiled class and the specs started calling the wrong closure.
+
 ## 0.2.2 (2026-10-28)
 
 - CrowdSec LAPI sink: the login function was named `token()`, which Lucee resolves to the cached `variables.token` string inside the component, so every push failed with "No matching function [TOKEN]"; renamed, and a spec now drives the login path. Sink exceptions are logged once per sink and minute instead of being swallowed; the guard logs its sink list and the CrowdSec sink its LAPI target at load.

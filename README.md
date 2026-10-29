@@ -278,6 +278,16 @@ both skip shadow decisions, and both are listed under `sinks`:
 
 `haproxy` adds strike-banned addresses to a map over the HAProxy Runtime API.
 
+Both run off the request thread: the guard wraps them in `AsyncSink`, which
+starts a short-lived thread per decision and returns at once, so a slow stats
+socket or Local API never adds to the response time of the blocked request.
+At most `asyncMaxInFlight` (8) deliveries per sink run at once; beyond that
+the decision is dropped for that sink and logged once a minute (a banned
+client keeps sending requests, so the edge learns of it on the next one).
+`"async": false` on a sink entry makes it inline again; `"async": true` on a
+`log` sink moves it off the thread too. `otel` annotates the current request's
+span and always stays inline. Your own sink: `guard.addSink( new models.sinks.AsyncSink( mySink ) )`.
+
 `crowdsec` has two paths, usable alone or together:
 
 - **Local, `file`**: one JSON line per decision into a file that the CrowdSec
@@ -291,8 +301,8 @@ both skip shadow decisions, and both are listed under `sinks`:
   are pushed as alerts with a ready decision to a CrowdSec Local API, which may
   run on another host.
   The sink logs in as a machine and keeps the token; a `ban` of `duration` 1h
-  by default. One synchronous HTTP call per banned address, failures are
-  logged and the app-side ban still holds.
+  by default. One HTTP call per banned address and `repushSeconds`, off the
+  request thread; failures are logged and the app-side ban still holds.
 
 [docs/crowdsec.md](docs/crowdsec.md) walks through both setups: acquisition,
 parser, scenario, machine registration, and how to verify each step.
@@ -312,7 +322,7 @@ models/Challenge.cfc    HMAC cookie challenge
 models/RateLimiter.cfc  progressive limiter on top of the store
 models/Strikes.cfc      strike counter + temporary bans
 models/store/*          IStore, MemoryStore, CacheBoxStore
-models/sinks/*          ISink, LogSink, OtelSink, HAProxySink, CrowdSecSink (file + LAPI)
+models/sinks/*          ISink, LogSink, OtelSink, HAProxySink, CrowdSecSink (file + LAPI), AsyncSink (off-thread decorator)
 docs/                   CrowdSec setup, ALTCHA design note
 config/                 example config + list seeds
 tests/                  TestBox specs replaying recorded signatures
@@ -332,7 +342,7 @@ entries. Add a new signature there before you add the rule.
 
 ## Status
 
-0.2.2. 66 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
+0.2.3. 70 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
 Adobe ColdFusion is untested. In production on a two-node Lucee site behind
 HAProxy since October 2026. The 0.x line may still change the config format
 between minor versions.
