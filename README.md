@@ -210,6 +210,56 @@ a week, then remove the key.
 (load protection rather than abuse), or a number to weigh the deny: `strike: 10`
 on a honeypot path bans on the first hit with the default threshold. Trusted bots are never struck or banned.
 
+## A honeypot path
+
+A link no visitor can see and no well-behaved crawler may follow. Whoever
+requests it is a scraper that parses the HTML for links and ignores robots.txt,
+so one hit is enough to ban the address. Three pieces:
+
+1. **The rule**, near the top of the chain so nothing cheaper answers first.
+   `strike: 10` with the default threshold of 10 bans on the first hit; verified
+   crawlers and internal networks are exempt, so a mistake in step 3 can never
+   lock out a search engine or your own monitoring:
+
+   ```json
+   { "name": "honeypot", "action": "deny", "strike": 10, "unless": [ "verifiedBot", "internalIP" ],
+     "when": { "path": "^/example-trap(/|$)" } }
+   ```
+
+2. **The link**, in a template that every page renders, typically the footer.
+   Hidden from eyes and screen readers, out of the tab order, and marked
+   `nofollow` so a search engine that reads the HTML before robots.txt still
+   has a reason not to follow it:
+
+   ```html
+   <a href="/example-trap/" rel="nofollow" tabindex="-1" aria-hidden="true" class="visually-hidden">Example</a>
+   ```
+
+   `visually-hidden` is the usual clip-rect class (Bootstrap ships one). Do not
+   use `display: none`: some scrapers skip links that are not rendered, and a
+   plain anchor that is only moved off-screen is what they follow.
+
+3. **robots.txt**, so an honest crawler never requests it and the rule's
+   exemptions are never needed:
+
+   ```
+   User-agent: *
+   Disallow: /example-trap/
+   ```
+
+Pick a path that looks like real content and does not exist in the
+application, so there is no handler to accidentally serve it, and never link it
+from anywhere else: a sitemap entry or a stray menu link turns the honeypot
+into a trap for your own visitors. A client that reaches it while logged in or
+through a shared address (carrier-grade NAT, a corporate proxy) takes everyone
+behind that address with it for `strikes.banSeconds`, which is the price of
+any address-based ban; keep the ban length reasonable.
+
+The hits read as `BLOCK-403-honeypot` in the log, the ban that follows as
+`BLOCK-403-banned`. With the CrowdSec sink, add `BLOCK-403-honeypot` to its
+`labels` so the first hit is pushed to the edge at once instead of waiting for
+the client's next request.
+
 ## Edge feedback: HAProxy and CrowdSec
 
 The guard decides inside the JVM. Two sinks hand its decisions to the edge so a
