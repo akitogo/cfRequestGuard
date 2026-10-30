@@ -17,8 +17,8 @@ is the only place that sets headers, writes a body and aborts.
 1. Get the package: `box install cfrequestguard`, clone the repository, add it
    as a git submodule, or download the zip from GitHub and unpack it, e.g. into
    `modules_app/cfRequestGuard`.
-2. Map it in `Application.cfc` (the guard runs before any framework loads):
-   `this.mappings[ "/cfRequestGuard" ] = "<path to the folder>"`.
+2. If the folder is not in the webroot, map it in `Application.cfc` (the guard
+   runs before any framework loads): `this.mappings[ "/cfRequestGuard" ] = "<path to the folder>"`.
 3. Copy `config/requestguard.example.json.cfm` from the package to
    `config/requestguard.json.cfm` in your application. It ships in shadow mode.
 4. In that file set `secret` (an environment variable; if you have multiple
@@ -35,12 +35,16 @@ instance and exposes it to WireBox as `requestGuard@cfRequestGuard`.
 ## Wire into Application.cfc
 
 ```cfml
+// only if the folder is not in the webroot (e.g. modules_app/cfRequestGuard):
+this.mappings[ "/cfRequestGuard" ] = getDirectoryFromPath( getCurrentTemplatePath() ) & "modules_app/cfRequestGuard";
+
 boolean function onApplicationStart(){
     application.requestGuard = new cfRequestGuard.RequestGuard( expandPath( "/config/requestguard.json.cfm" ) );
     ...
 }
 
 boolean function onRequestStart( string targetPage ){
+   // should be first so requests could be blocked
     var guard = application.requestGuard;
     try {
         var decision = guard.inspect( guard.snapshot() );
@@ -53,6 +57,8 @@ boolean function onRequestStart( string targetPage ){
         this.sessionTimeout = createTimeSpan( 0, 0, 0, decision.sessionTimeoutSeconds );
     }
     guard.enforce( decision );   // no-op for allow / log / shadow
+
+    // your code follows here
     ...
 }
 ```
