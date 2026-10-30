@@ -76,7 +76,9 @@ There are three switches, from coarse to fine:
 2. **Per-rule `mode`**: `{ "name": "new-signature", "action": "deny", "mode": "shadow", ... }`.
    Only that rule is reported instead of enforced; the rest of the config stays
    in enforce. This is how a new rule earns its place: shadow it for a week, read
-   the log, then delete the `mode` key.
+   the log, then delete the `mode` key. A shadow match does not stop the chain:
+   the rules below still run, so an enforced rule further down can still block
+   the request. Shadow matches never count strikes.
 3. **Challenge rules without a secret** are shadowed automatically. Until
    `secret` resolves to a value, every `challenge` decision is logged as
    `SHADOW CHALLENGE-...` with "no secret configured", because a random per-start

@@ -4,7 +4,7 @@
       application's own requestguard.json.cfm, not in this package.
 {
     "mode": "shadow",
-    "note": "mode: shadow logs every decision as SHADOW ... and enforces nothing; switch to enforce once the log looks right. See README, Shadow and enforce",
+    "note": "mode: shadow logs every decision as SHADOW ... and enforces nothing; switch to enforce once the log looks right. Rules that carry their own mode: shadow stay reported-only after the global switch; delete that key per rule to enforce it. See README, Shadow and enforce",
     "secret": "env:REQUESTGUARD_SECRET",
     "logFile": "requestguard",
     "trustedProxies": [],
@@ -59,7 +59,7 @@
           "when": { "claimsBot": "googlebot", "spoofedBot": true } },
 
         { "name": "spoofed-bot", "action": "deny", "mode": "shadow",
-          "note": "other verifiable bots, watch first, then flip to enforce",
+          "note": "other verifiable bots; watch first, remove mode to enforce",
           "when": { "spoofedBot": true } },
 
         { "name": "forged-forwarding-bot-claim", "action": "deny", "unless": [ "verifiedBot" ],
@@ -70,7 +70,7 @@
           "when": { "path": "com\\.chrome\\.devtools\\.json|\\.css\\.map" } },
 
         { "name": "unwanted-bots", "action": "deny", "mode": "shadow",
-          "note": "crawlers that bring nothing to a given site; the usual SEO examples, extend from your own logs",
+          "note": "crawlers that bring nothing to a given site; the usual SEO examples, extend from your own logs, remove mode to enforce",
           "when": { "ua": "AhrefsBot|SemrushBot|MJ12bot" } },
 
         { "name": "cloud-no-cookies", "action": "deny", "unless": [ "trustedBot" ],
