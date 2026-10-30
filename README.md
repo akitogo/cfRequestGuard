@@ -14,11 +14,23 @@ is the only place that sets headers, writes a body and aborts.
 
 ## Install
 
-```
-box install cfrequestguard
-```
+1. Get the package: `box install cfrequestguard`, clone the repository, add it
+   as a git submodule, or download the zip from GitHub and unpack it, e.g. into
+   `modules_app/cfRequestGuard`.
+2. Map it in `Application.cfc` (the guard runs before any framework loads):
+   `this.mappings[ "/cfRequestGuard" ] = "<path to the folder>"`.
+3. Copy `config/requestguard.example.json.cfm` from the package to
+   `config/requestguard.json.cfm` in your application. It ships in shadow mode.
+4. In that file set `secret` (an environment variable; if you have multiple
+   nodes, the same value on each) and, if you are behind a load balancer or
+   reverse proxy, its address in `trustedProxies`. Lists without a seed file or
+   sources stay empty and never match.
+5. Wire it into `Application.cfc` as shown below.
+6. Watch the `SHADOW` lines in the `requestguard` log for a week, then set
+   `"mode": "enforce"` and reload the application.
 
-or clone this repository and add a mapping `/cfRequestGuard` to its root.
+ColdBox users may also register the folder as a module: it reuses the same
+instance and exposes it to WireBox as `requestGuard@cfRequestGuard`.
 
 ## Wire into Application.cfc
 
