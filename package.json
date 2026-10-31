@@ -1,0 +1,9 @@
+{
+  "name": "cfrequestguard-vendor-build",
+  "private": true,
+  "description": "Build-time pins for the browser scripts vendored under vendor/. Not needed to run cfRequestGuard; see scripts/update-botd.sh.",
+  "devDependencies": {
+    "@fingerprintjs/botd": "2.0.0",
+    "esbuild": "0.28.2"
+  }
+}

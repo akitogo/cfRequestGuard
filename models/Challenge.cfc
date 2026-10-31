@@ -32,6 +32,7 @@ component {
 		variables.decision = arguments.decision;
 		variables.cfg.botd = lCase( variables.cfg.botd ) == "report" ? "report" : "off";
 		variables.botdJs   = "";
+		variables.botdVer  = "";
 		return this;
 	}
 
@@ -93,9 +94,10 @@ component {
 		if ( !len( rule ) || !len( n ) ) return d;
 		if ( n != nonce( arguments.snap, rule, page ) && n != nonce( arguments.snap, rule, page, -1 ) ) return d;
 		var kind = lCase( left( reReplace( toString( p.k ?: "" ), "[^A-Za-z0-9_-]", "", "all" ), 32 ) );
+		var ver  = left( reReplace( toString( p.v ?: "" ), "[^A-Za-z0-9.-]", "", "all" ), 20 );
 		d.rule   = rule;
 		d.label  = "BOTD-" & ( len( kind ) ? kind : "unknown" );
-		d.detail = "page=" & page & ( isNumeric( p.t ?: "" ) ? " ms=" & int( p.t ) : "" );
+		d.detail = "page=" & page & ( isNumeric( p.t ?: "" ) ? " ms=" & int( p.t ) : "" ) & ( len( ver ) ? " botd=" & ver : "" );
 		return d;
 	}
 
@@ -108,11 +110,24 @@ component {
 	private string function detectorJs(){
 		if ( len( variables.botdJs ) ) return variables.botdJs;
 		try {
-			variables.botdJs = fileRead( getDirectoryFromPath( getCurrentTemplatePath() ) & "../vendor/botd/botd.min.js" );
+			variables.botdJs = fileRead( vendorPath( "botd.min.js" ) );
 		} catch ( any e ) {
 			writeLog( file = "requestguard", type = "warning", text = "cfRequestGuard challenge: vendor/botd/botd.min.js unreadable (#e.message#), pages report nolib" );
 		}
 		return variables.botdJs;
+	}
+
+	/** Vendored BotD version (vendor/botd/VERSION, written by scripts/update-botd.sh); travels with the verdict so log lines tell builds apart. */
+	private string function detectorVersion(){
+		if ( len( variables.botdVer ) ) return variables.botdVer;
+		try {
+			variables.botdVer = left( reReplace( trim( fileRead( vendorPath( "VERSION" ) ) ), "[^A-Za-z0-9.-]", "", "all" ), 20 );
+		} catch ( any e ) {}
+		return variables.botdVer;
+	}
+
+	private string function vendorPath( required string file ){
+		return getDirectoryFromPath( getCurrentTemplatePath() ) & "../vendor/botd/" & arguments.file;
 	}
 
 	/** JS string-literal escaping without the ESAPI dependency (not shipped on every engine install). */
@@ -175,8 +190,8 @@ component {
 	 */
 	private string function reportJs( required struct snap, required string rule ){
 		var page = pageText( arguments.snap.path & ( len( arguments.snap.query ?: "" ) ? "?" & arguments.snap.query : "" ) );
-		return 'var R={u:"#jsStr( variables.cfg.botdPath )#",n:"#nonce( arguments.snap, arguments.rule, page )#",r:"#jsStr( arguments.rule )#",p:"#jsStr( page )#"},t0=Date.now(),done=false;'
-			& 'function send(k){var b=JSON.stringify({n:R.n,r:R.r,p:R.p,k:k,t:Date.now()-t0});'
+		return 'var R={u:"#jsStr( variables.cfg.botdPath )#",n:"#nonce( arguments.snap, arguments.rule, page )#",r:"#jsStr( arguments.rule )#",p:"#jsStr( page )#",v:"#jsStr( detectorVersion() )#"},t0=Date.now(),done=false;'
+			& 'function send(k){var b=JSON.stringify({n:R.n,r:R.r,p:R.p,k:k,v:R.v,t:Date.now()-t0});'
 			& 'try{if(navigator.sendBeacon&&navigator.sendBeacon(R.u,new Blob([b],{type:"application/json"}))){return;}}catch(e){}'
 			& 'try{fetch(R.u,{method:"POST",body:b,keepalive:true,headers:{"Content-Type":"application/json"}});}catch(e){}}'
 			& 'function fin(k){if(done){return;}done=true;send(k);go();}'

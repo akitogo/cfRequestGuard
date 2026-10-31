@@ -1,0 +1,15 @@
+# Watches the build-time pins in package.json (BotD, esbuild). A bump PR fails
+# the "vendor" job until someone runs scripts/update-botd.sh and commits the
+# rebuilt vendor/botd, so the vendored file can never drift from the pin.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: vendor
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

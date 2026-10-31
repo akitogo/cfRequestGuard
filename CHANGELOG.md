@@ -4,6 +4,8 @@
 
 - Challenge page: `challenge.botd: "report"` inlines [BotD](https://github.com/fingerprintjs/BotD) 2.0.0 (MIT, vendored under `vendor/botd`, built with its usage ping disabled) and posts the verdict to `challenge.botdPath` (`/__requestguard/botd`) before the cookie flow runs. The guard answers 204 ahead of any routing and hands the sinks a `BOTD-<kind>` decision (clean, headless_chrome, selenium, ..., timeout/error/nolib) with the issuing rule and the challenged page; no strike, nothing blocked. The post is bound by a nonce (HMAC over day, client IP, rule, page, today or yesterday); anything else is `BOTD-invalid`. Measurement only: a JS challenge is passed by any headless browser, this shows which share of the passes a client-side detector would have caught. Default `off`.
 - `snapshot()` reads the request body only for that report request (capped at 4 kB).
+- The verdict carries the vendored BotD version (`botd=2.0.0` in the log line), read from `vendor/botd/VERSION`.
+- Vendoring made reproducible: `package.json` pins `@fingerprintjs/botd` and esbuild, `scripts/update-botd.sh` rebuilds `vendor/botd` from the pin (or bumps it), Dependabot watches the pin, and a GitHub Actions workflow fails when the vendored build differs from a fresh build. The same workflow runs the specs on Lucee 6.2.7 and BoxLang 1.18 for every push and pull request.
 - Specs: 5 for the report mode in `ChallengeSpec`.
 
 ## 0.2.3 (2026-10-29)

@@ -339,7 +339,7 @@ models/Verifier.cfc     bot claims and verification
 models/Rules.cfc        rule compiler + evaluator
 models/Matchers.cfc     the `when` / `unless` vocabulary
 models/Challenge.cfc    HMAC cookie challenge, BotD report endpoint
-vendor/botd/            BotD 2.0.0 (MIT), inlined into the challenge page when enabled
+vendor/botd/            BotD (MIT), inlined into the challenge page when enabled; rebuilt by scripts/update-botd.sh from the package.json pin
 models/RateLimiter.cfc  progressive limiter on top of the store
 models/Strikes.cfc      strike counter + temporary bans
 models/store/*          IStore, MemoryStore, CacheBoxStore
@@ -356,6 +356,10 @@ box install                                   # TestBox into ./testbox (dev depe
 box server start cfengine=lucee@6 port=60099 openbrowser=false saveSettings=false
 curl "http://127.0.0.1:60099/tests/runner.cfm?reporter=text"
 ```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the same suite on Lucee 6.2.7
+and BoxLang 1.18 for every push and pull request, plus a job that rebuilds
+`vendor/botd` from the pinned version and fails on any difference.
 
 `tests/specs/RulesSpec.cfc` replays recorded scraper signatures against
 `config/requestguard.example.json.cfm` with the network lists swapped for inline
@@ -396,7 +400,7 @@ else: no strike, no block. Kinds are `clean`, one of BotD's bot kinds
 and the challenged page:
 
 ```
-BOTD-headless_chrome | rule=chrome-no-secfetch | ip=203.0.113.91 | POST /__requestguard/botd | ua=Mozilla/5.0 ... | page=/products/8461063.html ms=118
+BOTD-headless_chrome | rule=chrome-no-secfetch | ip=203.0.113.91 | POST /__requestguard/botd | ua=Mozilla/5.0 ... | page=/products/8461063.html ms=118 botd=2.0.0
 ```
 
 The post carries a nonce, an HMAC over the day, the client address, the rule and
@@ -416,6 +420,11 @@ grep -c "BOTD-clean"                     # browsers that passed the detector
 `botdPath` must reach the application like any page request (the guard runs
 inside `onRequestStart`); if a front proxy only forwards known extensions,
 add the path.
+
+BotD is vendored, not fetched: `package.json` pins the upstream version,
+`scripts/update-botd.sh` rebuilds `vendor/botd` from it, Dependabot proposes
+bumps and the CI job `vendor` fails when the vendored build does not match the
+pin. See `vendor/botd/README.md`.
 
 ## Running on BoxLang
 

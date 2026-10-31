@@ -71,7 +71,10 @@ component extends="testbox.system.BaseSpec" {
 				var n    = t.guard.getChallenge().nonce( snap, "chal", "/items/42.html?page=3" );
 				expect( body ).toInclude( "var BotD=" );
 				expect( body ).toInclude( "BotD.load({monitoring:false})" );
-				expect( body ).toInclude( 'var R={u:"/__requestguard/botd",n:"#n#",r:"chal",p:"/items/42.html?page=3"}' );
+				var ver = trim( fileRead( expandPath( "/cfRequestGuard/vendor/botd/VERSION" ) ) );
+				expect( ver ).toMatch( "^\d+\.\d+\.\d+" );
+				expect( body ).toInclude( 'var R={u:"/__requestguard/botd",n:"#n#",r:"chal",p:"/items/42.html?page=3",v:"#ver#"}' );
+				expect( body ).toInclude( "/*! BotD v#ver# " );
 				expect( body ).toInclude( "navigator.sendBeacon" );
 				expect( body ).toInclude( 'setTimeout(function(){fin("timeout");},1500)' );
 				// the cookie flow is unchanged, just deferred until the verdict is sent
@@ -83,12 +86,12 @@ component extends="testbox.system.BaseSpec" {
 			it( "report: a verdict with a valid nonce becomes a 204 BOTD-<kind> decision for the sinks, no strike", function(){
 				var t    = make( "report" );
 				var n    = t.guard.getChallenge().nonce( page(), "chal", "/items/42.html" );
-				var d    = t.guard.inspect( post( '{"n":"#n#","r":"chal","p":"/items/42.html","k":"headless_chrome","t":131}' ) );
+				var d    = t.guard.inspect( post( '{"n":"#n#","r":"chal","p":"/items/42.html","k":"headless_chrome","v":"2.0.0","t":131}' ) );
 				expect( d.action ).toBe( "ignore" );
 				expect( d.status ).toBe( 204 );
 				expect( d.label ).toBe( "BOTD-headless_chrome" );
 				expect( d.rule ).toBe( "chal" );
-				expect( d.detail ).toBe( "page=/items/42.html ms=131" );
+				expect( d.detail ).toBe( "page=/items/42.html ms=131 botd=2.0.0" );
 				expect( d.strike ).toBe( 0 );
 				expect( t.sink.labels() ).toBe( [ "BOTD-headless_chrome" ] );
 				expect( t.guard.getStrikes().isBanned( "203.0.113.50" ) ).toBeFalse();
@@ -124,13 +127,13 @@ component extends="testbox.system.BaseSpec" {
 			it( "report: kind and page are sanitised before they reach a log line", function(){
 				var t = make( "report" );
 				var n = t.guard.getChallenge().nonce( page(), "chal", "/a" );
-				var d = t.guard.inspect( post( '{"n":"#n#","r":"chal","p":"/a","k":"head<less>\n| rule=x","t":"nope"}' ) );
+				var d = t.guard.inspect( post( '{"n":"#n#","r":"chal","p":"/a","k":"head<less>\n| rule=x","v":"<b>","t":"nope"}' ) );
 				expect( d.label ).toBe( "BOTD-headlessrulex" );
-				expect( d.detail ).toBe( "page=/a" );
+				expect( d.detail ).toBe( "page=/a botd=b" );
 				// the page text embedded in the challenge is already printable ASCII and capped, so it round-trips the nonce
 				var long = page( "/" & repeatString( "x", 300 ), "q=" & chr( 10 ) & "é" );
 				var body = t.guard.inspect( long ).body;
-				expect( body ).toInclude( 'p:"/' & repeatString( "x", 199 ) & '"}' );
+				expect( body ).toInclude( 'p:"/' & repeatString( "x", 199 ) & '",v:"' );
 			} );
 		} );
 	}

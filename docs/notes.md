@@ -48,10 +48,10 @@ whoever continues the work.
 
 ## Open items, rough priority
 
-1. **CI workflow**: GitHub Actions running `tests/runner.cfm` on CommandBox
-   with `lucee@6.2.7+16` and `boxlang@1.18`, text reporter, fail on
-   `[Failed: 0]` missing. Skipped on purpose at release time; the local
-   recipe is in the README "Tests" section.
+1. ~~CI workflow~~ done 2026-10-31: `.github/workflows/ci.yml` runs the specs on
+   both engines (JSON reporter, exit on totalFail/totalError) and the
+   `vendor` job that rebuilds vendor/botd from the pin. Watch the first runs:
+   the CommandBox + BoxLang path on a GitHub runner is untested as of writing.
 2. **Config as a struct or `.cfc`**: the facade already accepts a struct;
    `Config.read()` could load a `.cfc` returning one (~20 lines). Decided
    2026-10-15 to keep JSON as the documented format for now.
@@ -113,6 +113,8 @@ whoever continues the work.
   the token and the endpoint issues the cookie (Set-Cookie on a clean verdict),
   which also makes the verdict forgeable by anyone who reads the script. Decide
   after a week of `BOTD-` lines next to the `CHALLENGE-` lines of the same IPs.
-- vendor/botd is a build artefact with one patch (monitoring default off);
-  rebuild steps in vendor/botd/README.md. Check the upstream repo before a
-  version bump: the roadmap is stability-only.
+- vendor/botd is a build artefact with one patch (monitoring default off),
+  rebuilt by scripts/update-botd.sh from the package.json pin; Dependabot
+  bumps the pin, CI refuses a stale vendor. A bump is still a human step: run
+  the script, read the diff, let the specs run. Upstream roadmap is
+  stability-only, so expect few bumps.

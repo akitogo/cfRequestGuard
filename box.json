@@ -11,7 +11,7 @@
     "shortDescription":"Framework-independent bot, scraper and abuse defence for CFML (Lucee 6, BoxLang 1.x): ordered rules, verified crawlers, JS challenge, progressive rate limits, strike bans.",
     "keywords":"bot,crawler,scraper,ratelimit,security,waf,haproxy,crowdsec",
     "license":[ { "type":"Apache-2.0", "URL":"https://www.apache.org/licenses/LICENSE-2.0" } ],
-    "ignore":[ "tests/", "**/.*" ],
+    "ignore":[ "tests/", "node_modules/", "**/.*" ],
     "devDependencies":{ "testbox":"^6.0.0" },
     "installPaths":{ "testbox":"testbox/" },
     "scripts":{
