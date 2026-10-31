@@ -102,3 +102,17 @@ whoever continues the work.
 - A normal office behind one NAT shares the `limitWithSession` budget (60 per
   3 s window); raise it before lowering anything else if a customer reports
   503s.
+
+## BotD report mode (unreleased, 2026-10-31)
+
+- Why: a JS cookie challenge is passed by headless Chrome pools; measured on a
+  live site, most challenged clients fetched the full page afterwards. Report
+  mode shows what share a client-side detector would have flagged before anyone
+  builds a gate on it.
+- Gate mode is deliberately not built yet: it means the page no longer carries
+  the token and the endpoint issues the cookie (Set-Cookie on a clean verdict),
+  which also makes the verdict forgeable by anyone who reads the script. Decide
+  after a week of `BOTD-` lines next to the `CHALLENGE-` lines of the same IPs.
+- vendor/botd is a build artefact with one patch (monitoring default off);
+  rebuild steps in vendor/botd/README.md. Check the upstream repo before a
+  version bump: the roadmap is stability-only.

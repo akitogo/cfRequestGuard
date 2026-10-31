@@ -3,3 +3,6 @@ Copyright 2026 akitogo
 
 This product includes software developed by akitogo (https://www.akitogo.com).
 Licensed under the Apache License, Version 2.0; see LICENSE.
+
+vendor/botd/botd.min.js is BotD (https://github.com/fingerprintjs/BotD),
+Copyright (c) 2025 FingerprintJS, Inc., MIT License; see vendor/botd/LICENSE.

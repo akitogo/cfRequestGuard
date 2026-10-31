@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Challenge page: `challenge.botd: "report"` inlines [BotD](https://github.com/fingerprintjs/BotD) 2.0.0 (MIT, vendored under `vendor/botd`, built with its usage ping disabled) and posts the verdict to `challenge.botdPath` (`/__requestguard/botd`) before the cookie flow runs. The guard answers 204 ahead of any routing and hands the sinks a `BOTD-<kind>` decision (clean, headless_chrome, selenium, ..., timeout/error/nolib) with the issuing rule and the challenged page; no strike, nothing blocked. The post is bound by a nonce (HMAC over day, client IP, rule, page, today or yesterday); anything else is `BOTD-invalid`. Measurement only: a JS challenge is passed by any headless browser, this shows which share of the passes a client-side detector would have caught. Default `off`.
+- `snapshot()` reads the request body only for that report request (capped at 4 kB).
+- Specs: 5 for the report mode in `ChallengeSpec`.
+
 ## 0.2.3 (2026-10-29)
 
 - Sinks that leave the JVM (`haproxy`, `crowdsec`) are delivered off the request thread. Until now every sink ran synchronously inside `emit()`, so a slow HAProxy stats socket or CrowdSec Local API (up to four HTTP calls of `timeoutSeconds` each on a cold token) was paid by the blocked request. New `models/sinks/AsyncSink.cfc` decorator: one short-lived thread per decision, at most `asyncMaxInFlight` (8) in flight per sink, decisions beyond that dropped and logged once a minute rather than queued or delivered inline; a throwing inner sink is counted and logged, never thrown. `"async": false` per sink entry opts out, `"async": true` moves a `log` sink off the thread too; `otel` is never wrapped. The sink list logged at load reads `HAProxySink (async)`.

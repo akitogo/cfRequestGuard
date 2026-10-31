@@ -65,7 +65,18 @@ component {
 			now        : now()
 		};
 		snap.clientIP = variables.clientIP.resolve( snap );
+		// the challenge page's detector report is the one request whose body matters
+		if ( variables.challenge.isReportRequest( snap ) ) snap.body = requestBody();
 		return snap;
+	}
+
+	private string function requestBody(){
+		try {
+			var c = getHttpRequestData().content;
+			return left( isBinary( c ) ? toString( c ) : toString( c ?: "" ), 4000 );
+		} catch ( any e ) {
+			return "";
+		}
 	}
 
 	/**
@@ -77,6 +88,14 @@ component {
 		// 1. derived facts the rules may consult (bot classification is a few regexes)
 		snap.challengePassed = variables.challenge.isPassed( snap );
 		snap.bot             = variables.verifier.classify( snap );
+
+		// 1b. the challenge page reporting its detector verdict: verified by nonce,
+		// handed to the sinks as BOTD-<kind>, answered 204, never routed to the app
+		if ( variables.challenge.isReportRequest( snap ) ) {
+			var report = variables.challenge.report( snap );
+			emit( report, snap );
+			return report;
+		}
 
 		// 2. strike ban: one lookup. Never for internal networks and never for a
 		// trusted bot: a verified crawler denied by a load-protection rule must

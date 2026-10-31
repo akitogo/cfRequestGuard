@@ -207,7 +207,7 @@ See `config/requestguard.example.json.cfm`. Top-level keys:
 | `lists` | named IP lists: seed file + refresh URLs + minimum-size floor. Refreshed data is kept in the store under `rg:list:<name>` for `keepDays` (7), so a shared or persistent store means a restart or a second node starts from the last good copy. |
 | `bots` | trusted bots: UA pattern + optional verification: an IP list, or forward-confirmed rDNS (`verify.rdns`, optionally fenced by `verify.ranges` so addresses outside them are spoofed without a lookup). |
 | `rdns` | fences for rDNS lookups, the only verification that touches the network: `maxInFlight` (4) lookups per node at once, `timeoutMs` (1500) per lookup in its own thread, verdicts cached per IP for `cacheSeconds` (86400), timeouts and budget misses for `unknownCacheSeconds` (60). Unknown means ordinary visitor: neither trusted nor spoofed, so a DNS outage can neither stall request threads nor turn the real crawler away. |
-| `challenge` | cookie name, lifetime, IP binding, page texts (`title`, `continueText`, `retryText`, `cookieText`). The page sets the cookie and reloads once; a second render within `retryWindowSeconds` (600) in the same tab, or a cookie the browser refuses, stops the automatic reload and waits for a click, so a rejected cookie never loops. |
+| `challenge` | cookie name, lifetime, IP binding, page texts (`title`, `continueText`, `retryText`, `cookieText`). The page sets the cookie and reloads once; a second render within `retryWindowSeconds` (600) in the same tab, or a cookie the browser refuses, stops the automatic reload and waits for a click, so a rejected cookie never loops. | `botd: "report"` adds the headless detector, see [Headless detection](#headless-detection-in-the-challenge-page). |
 | `strikes` | threshold / window / ban length for the escalation ladder. |
 | `rules` | ordered rules, first terminal match wins. Put `ratelimit` rules above `challenge` rules: an untripped limiter falls through, but a client looping on a challenge never reaches a limiter placed below it. |
 
@@ -338,7 +338,8 @@ models/Lists.cfc        named IP lists, seed + refresh + floor
 models/Verifier.cfc     bot claims and verification
 models/Rules.cfc        rule compiler + evaluator
 models/Matchers.cfc     the `when` / `unless` vocabulary
-models/Challenge.cfc    HMAC cookie challenge
+models/Challenge.cfc    HMAC cookie challenge, BotD report endpoint
+vendor/botd/            BotD 2.0.0 (MIT), inlined into the challenge page when enabled
 models/RateLimiter.cfc  progressive limiter on top of the store
 models/Strikes.cfc      strike counter + temporary bans
 models/store/*          IStore, MemoryStore, CacheBoxStore
@@ -362,7 +363,7 @@ entries. Add a new signature there before you add the rule.
 
 ## Status
 
-0.2.3. 70 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
+0.2.3 plus unreleased changes. 75 specs green on Lucee 6.2.7 and BoxLang 1.18 (with `bx-compat-cfml`).
 Adobe ColdFusion is untested. In production on a two-node Lucee site behind
 HAProxy since October 2026. The 0.x line may still change the config format
 between minor versions.
@@ -371,6 +372,50 @@ Open: proof-of-work challenge kind via ALTCHA (design note: `docs/altcha-pow-cha
 seancfoley IPAddress), Redis store with native INCR, a renderer that turns
 `exportable` rules into HAProxy map/ACL snippets, optional yauaa client-hints
 cross-check, Web Bot Auth signature verifier.
+
+## Headless detection in the challenge page
+
+The JavaScript challenge proves that a client ran a script. A headless browser
+runs scripts too, so a pool of real Chrome instances passes it and only pays one
+extra round trip. `challenge.botd` adds [BotD](https://github.com/fingerprintjs/BotD)
+(FingerprintJS, MIT, vendored under `vendor/botd`, inlined into the page, so the
+page still loads nothing from the network and sends nothing to anyone but you):
+
+```json
+"challenge": { "cookie": "rg_c", "botd": "report" }
+```
+
+In `report` mode the page runs the detector first, posts the verdict to
+`botdPath` (`/__requestguard/botd`) with `sendBeacon`, then continues with the
+cookie flow exactly as before. The guard answers the post with 204 before any
+routing, hands the sinks a decision labelled `BOTD-<kind>` and changes nothing
+else: no strike, no block. Kinds are `clean`, one of BotD's bot kinds
+(`headless_chrome`, `selenium`, `playwright`, `electron`, ...), or `timeout`,
+`error` and `nolib` when the detector did not answer within `botdTimeoutMs`
+(1500) or did not run. The log line carries the rule that issued the challenge
+and the challenged page:
+
+```
+BOTD-headless_chrome | rule=chrome-no-secfetch | ip=203.0.113.91 | POST /__requestguard/botd | ua=Mozilla/5.0 ... | page=/products/8461063.html ms=118
+```
+
+The post carries a nonce, an HMAC over the day, the client address, the rule and
+the page, so the endpoint only accepts verdicts for pages it rendered to that
+client; anything else is logged as `BOTD-invalid`. The verdict itself is still
+computed in the client's browser, so a determined operator can forge it: this is
+a measurement and a filter for the common case, not proof. Run it in report mode
+for a week against the `CHALLENGE-` lines of the same clients before deciding
+whether a gate mode (cookie only on a clean verdict) is worth having for your
+traffic:
+
+```
+grep "BOTD-" | grep -v "BOTD-clean"      # detected automation, by kind
+grep -c "BOTD-clean"                     # browsers that passed the detector
+```
+
+`botdPath` must reach the application like any page request (the guard runs
+inside `onRequestStart`); if a front proxy only forwards known extensions,
+add the path.
 
 ## Running on BoxLang
 
