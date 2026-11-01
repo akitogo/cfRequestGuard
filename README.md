@@ -421,6 +421,40 @@ grep -c "BOTD-clean"                     # browsers that passed the detector
 inside `onRequestStart`); if a front proxy only forwards known extensions,
 add the path.
 
+What one day of report mode showed against a residential proxy pool (14k
+addresses, one cookie-less page each, a fixed desktop Chrome user agent): 87 %
+of the verdicts came back `clean`, 13 % `headless_chrome`, and every client,
+flagged or not, completed the cookie flow and fetched the page plus its XHR.
+BotD recognised an eighth of the pool, the JavaScript challenge none of it; the
+header signature of the pool caught all of it. A gate mode was therefore not
+built: it would have cost an eighth of that pool and any false positive would
+have locked out a real user. Report mode stays useful as a measurement on the
+challenge rules you keep.
+
+## Proof of work and interactive challenges
+
+The cookie challenge proves a script ran; proof of work makes each request cost
+CPU, and an interactive challenge asks the visitor to do something. None of the
+self-hosted options carries the cross-site reputation that makes Cloudflare
+Turnstile effective, so judge them by what they add locally. Surveyed 2026-11-01:
+
+| Project | Licence | Shape | Notes |
+|---|---|---|---|
+| [ALTCHA](https://altcha.org) | MIT (core) | Widget plus a few server lines; classic SHA-256 scheme needs only `hash` and `hmac` | Planned as `challenge.kind: "altcha"`, see `docs/altcha-pow-challenge.md`. The interactive *Code Challenge* (type 4 to 8 characters from an image, audio alternative) is not in the core: it needs ALTCHA Sentinel (self-hosted, paid, €99/month Professional in 2026) or your own server side; Lucee's `cfimage action="captcha"` could render it. |
+| [Cap](https://capjs.js.org) | Apache 2.0 | Single Docker service, proof of work plus browser instrumentation checks, reCAPTCHA-shaped verify API | The fullest self-hosted stack. Comparison pages are written by its maintainers. Next to evaluate. |
+| [mCaptcha](https://mcaptcha.org) | AGPL-3.0 | Own server, variable-difficulty proof of work | Pre-1.0, slow moving. |
+| [Anubis](https://anubis.techaro.lol) | MIT | Reverse-proxy gate for a whole site or path, built against AI crawlers | Sits on the proxy, not in the application; overlaps with what this package does with less control per rule. |
+
+What proof of work buys: the no-JavaScript tier dies without a cookie round
+trip, headless browsers burn CPU on hostile paths (sitemaps, XHR endpoints),
+and the same widget can guard login, password reset and contact forms. What it
+does not buy: a pool that uses each address once pays one small puzzle per
+address and is never seen again, so a difficulty ladder keyed on strikes never
+bites. A typed-code captcha is the weakest interactive form; optical
+recognition solves it for fractions of a cent, and a pool that runs real Chrome
+hands it to a solver. Use these against scripts on forms, use header and
+behaviour signatures against pools.
+
 BotD is vendored, not fetched: `package.json` pins the upstream version,
 `scripts/update-botd.sh` rebuilds `vendor/botd` from it, Dependabot proposes
 bumps and the CI job `vendor` fails when the vendored build does not match the

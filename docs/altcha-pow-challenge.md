@@ -1,6 +1,8 @@
 # TODO: proof-of-work challenge kind via ALTCHA
 
-Status: not started. Decided 2026-10-09. Slots into `models/Challenge.cfc`
+Status: not started. Decided 2026-10-09, left on the shelf 2026-11-01 (see
+"Proof of work and interactive challenges" in the README for the survey and
+the measured limits; Cap is the candidate to evaluate next). Slots into `models/Challenge.cfc`
 (`issue()` has the `case "pow"` placeholder) as `challenge.kind: "altcha"`.
 
 ## Why ALTCHA
@@ -89,3 +91,23 @@ Verify (server), all must hold:
 - https://altcha.org/docs/integration/widget.md
 - https://altcha.org/docs/integration/security-recommendations.md
 - https://central.sonatype.com/artifact/org.altcha/altcha
+
+## Interactive Code Challenge (surveyed 2026-11-01)
+
+The ALTCHA widget can show a typed-code challenge (4 to 8 characters from an
+image, audio alternative) but only with ALTCHA Sentinel (self-hosted, paid)
+or a custom server. Our own server side would be: render the code with
+`cfimage action="captcha"`, keep a one-time ledger in the store keyed by the
+challenge id, verify the typed code case-insensitively, then issue the normal
+HMAC cookie. Weak against solver services; worth it for forms only.
+
+## Cap (to evaluate)
+
+https://capjs.js.org, Apache 2.0, single Docker service. Proof of work plus
+browser instrumentation checks, verify API shaped like reCAPTCHA's. Questions
+before adopting: what the instrumentation checks actually look at (and how it
+fares against a real headless Chrome), whether the widget can run invisibly
+inside the existing challenge page, how the service is kept private (it must
+not become a second public surface), and whether a verify round trip per
+challenge is acceptable next to the cookie flow.
+
